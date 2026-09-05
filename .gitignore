@@ -1,0 +1,18 @@
+# Lokalno Python okruzenje i cache
+/venv/
+/.venv/
+__pycache__/
+*.py[cod]
+
+# WJD baza i izvorni MIDI podaci preuzimaju se odvojeno
+/data_midi/*
+
+# Generisani rezultati; rucno anotirani CSV ostaje u Git-u
+/output/*
+!/output/wjd_phrase_call_response.csv
+
+# Lokalna podesavanja editora i operativnog sistema
+/.vscode/
+/.idea/
+.DS_Store
+Thumbs.db
