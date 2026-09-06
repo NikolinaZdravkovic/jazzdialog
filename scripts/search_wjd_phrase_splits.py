@@ -3,6 +3,7 @@
 import csv
 import json
 import math
+import re
 from pathlib import Path
 
 
@@ -69,6 +70,7 @@ MIN_THREE_NOTE_DURATION_SECONDS = 0.75
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = PROJECT_ROOT / "data_midi" / "wjazzd.db"
 OUTPUT_CSV = PROJECT_ROOT / "output" / "wjd_phrase_call_response.csv"
+EXCERPT_DIR = PROJECT_ROOT / "output" / "wjd_phrase_excerpts"
 
 
 # Pitch nizovi iz pocetne rucne Excel tabele jazzdialog3(4).xlsx.
@@ -380,6 +382,95 @@ def _find_internal_reference_candidates(phrase_pitches):
             continue
         kept.append(candidate)
     return kept
+
+
+def _excerpt_filename(result):
+    """Napravi stabilno ime koje direktno pokazuje tri granice kandidata."""
+    phrase_value = re.sub(r"[^A-Za-z0-9_-]+", "_", str(result["phrase_value"]))
+    call_start = int(result["call_start_local"])
+    split = int(result["split_point_local"])
+    response_end = int(result["response_end_local_exclusive"])
+    phrase_len = (
+        int(result["phrase_end_index_inclusive"])
+        - int(result["phrase_start_index"])
+        + 1
+    )
+    if call_start == 0 and response_end == phrase_len:
+        return (
+            f"melid_{result['melid']}_phrase_{phrase_value}_split_{split}.mid"
+        )
+    return (
+        f"melid_{result['melid']}_phrase_{phrase_value}_"
+        f"start_{call_start}_split_{split}_end_{response_end}.mid"
+    )
+
+
+def _write_excerpt_midi(events, result, excerpt_dir):
+    """Sacuvaj jedan kandidat kao MIDI, uz originalni tajming iz WJD baze."""
+    import pretty_midi
+
+    call_start = int(result["call_start_solo"])
+    split = int(result["split_point_solo"])
+    response_last = int(result["response_end_solo_inclusive"])
+    if not (0 <= call_start < split <= response_last < len(events)):
+        raise ValueError(
+            f"neispravne solo granice {call_start}:{split}:{response_last + 1}"
+        )
+
+    excerpt_dir.mkdir(parents=True, exist_ok=True)
+    output_path = excerpt_dir / _excerpt_filename(result)
+    excerpt_start = float(events[call_start][1])
+
+    midi = pretty_midi.PrettyMIDI(initial_tempo=120.0)
+    call_track = pretty_midi.Instrument(program=0, name="CALL")
+    response_track = pretty_midi.Instrument(program=0, name="RESPONSE")
+
+    for event_index in range(call_start, response_last + 1):
+        _eventid, onset, pitch, duration = events[event_index]
+        note = pretty_midi.Note(
+            velocity=100,
+            pitch=int(round(pitch)),
+            start=max(0.0, float(onset) - excerpt_start),
+            end=max(0.001, float(onset) - excerpt_start + float(duration)),
+        )
+        if event_index < split:
+            call_track.notes.append(note)
+        else:
+            response_track.notes.append(note)
+
+    midi.instruments.extend([call_track, response_track])
+    response_time = max(0.0, float(events[split][1]) - excerpt_start)
+    midi.lyrics.append(pretty_midi.Lyric(text="CALL", time=0.0))
+    midi.lyrics.append(pretty_midi.Lyric(text="RESPONSE", time=response_time))
+    midi.write(str(output_path))
+    return output_path.resolve()
+
+
+def _export_result_midis(db_path, results, excerpt_dir=EXCERPT_DIR):
+    """Generisi ili osvezi MIDI za svaki red koji ce biti upisan u CSV."""
+    events_by_melid = {}
+    written = 0
+    conn = connect_db(str(db_path))
+    try:
+        for result in results:
+            try:
+                melid = int(result["melid"])
+                if melid not in events_by_melid:
+                    events_by_melid[melid] = get_melody_events(conn, melid)
+                path = _write_excerpt_midi(
+                    events_by_melid[melid], result, Path(excerpt_dir)
+                )
+                result["excerpt_midi"] = str(path)
+                written += 1
+            except Exception as error:
+                print(
+                    f"[UPOZORENJE] MIDI nije sacuvan za melid="
+                    f"{result.get('melid')}, frazu {result.get('phrase_value')}: "
+                    f"{error}"
+                )
+    finally:
+        conn.close()
+    return written
 
 
 def _incipit_score_with_tempo(
@@ -955,6 +1046,8 @@ def search_wjd_phrases(
                 row.update(candidate_scores[key])
             results_to_write.append(row)
 
+    midi_count = _export_result_midis(db_path, results_to_write)
+
     columns = [
         "validnost", "automatski_status",
         "candidate_source", "decision_reason", "manual_reference_id",
@@ -1010,6 +1103,8 @@ def search_wjd_phrases(
                 f"{result['response_end_local_exclusive']}, "
                 f"score={result['score']:.4f}"
             )
+    print(f"MIDI isecci sacuvani/osvezeni: {midi_count}")
+    print(f"MIDI folder: {EXCERPT_DIR}")
     print(f"CSV sacuvan u: {output_csv}")
 
     return found_pairs, summaries

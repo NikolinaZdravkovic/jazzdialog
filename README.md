@@ -10,6 +10,8 @@ Rezultati se čuvaju u `output/wjd_phrase_call_response.csv`. Svaki kandidat se 
 - `NE` — kandidat nije call-and-response;
 - prazno — kandidat još nije pregledan.
 
+Pri svakom pokretanju za svaki red iz CSV-a automatski se generiše MIDI isečak u `output/wjd_phrase_excerpts`. Isečak sadrži samo pronađeni call i response sa originalnim ritmom, a kolona `excerpt_midi` čuva njegovu tačnu putanju.
+
 Ručne `NE` oznake dodaju kaznu sličnim kandidatima u sledećim iteracijama. Početna ručna Excel anotacija služi kao biblioteka pozitivnih melodijskih referenci za unutrašnje prozore. Kolone `candidate_source` i `decision_reason` pokazuju zašto je svaki red dodat, dok `call_start_local`, `split_point_local` i `response_end_local_exclusive` čuvaju njegove tačne granice unutar WJD fraze. Krajnji rezultat istraživanja je provereni dataset jazz call-and-response primera, uz algoritam koji pomaže u njihovom pronalaženju.
 
 ## Pokretanje
