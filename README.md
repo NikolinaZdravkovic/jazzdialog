@@ -10,7 +10,7 @@ Rezultati se čuvaju u `output/wjd_phrase_call_response.csv`. Svaki kandidat se 
 - `NE` — kandidat nije call-and-response;
 - prazno — kandidat još nije pregledan.
 
-Ručne oznake koriste se u sledećim iteracijama kao nagrade i kazne u scoring sistemu. Krajnji rezultat istraživanja je provereni dataset jazz call-and-response primera, uz algoritam koji pomaže u njihovom pronalaženju.
+Ručne oznake koriste se u sledećim iteracijama kao nagrade i kazne u scoring sistemu. Početna ručna Excel anotacija služi kao biblioteka pozitivnih melodijskih referenci. Krajnji rezultat istraživanja je provereni dataset jazz call-and-response primera, uz algoritam koji pomaže u njihovom pronalaženju.
 
 ## Pokretanje
 

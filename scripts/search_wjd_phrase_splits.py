@@ -54,11 +54,11 @@ NEGATIVE_SIMILARITY_LIMIT = 0.30
 POSITIVE_REWARD_WEIGHT = 0.70
 POSITIVE_SIMILARITY_LIMIT = 0.30
 
-# Mala dodatna korekcija uci profil veze iz oznacenih DA/NE primera.
-# Profil koristi samo oblik cele linije i prvih pet nota; ne menja osnovni
-# DTW + incipit skor i sam ne moze da napravi veliki skok u rezultatu.
-PROFILE_INCIPIT_K = 5
-PROFILE_ADJUSTMENT_WEIGHT = 0.10
+# Novi kandidat mora imati veoma jasan pocetak ili biti blizak jednom od
+# rucno potvrđenih parova. Time slicnost od samo nekoliko slucajnih tonova
+# vise nije dovoljna da kandidat udje u rezultat.
+STRONG_INCIPIT_LIMIT = 0.25
+POSITIVE_REFERENCE_LIMIT = 0.30
 
 # U veoma brzom tempu tri kratke note nisu dovoljan incipit dokaz.
 FAST_TEMPO_BPM = 215.0
@@ -67,6 +67,40 @@ MIN_THREE_NOTE_DURATION_SECONDS = 0.75
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = PROJECT_ROOT / "data_midi" / "wjazzd.db"
 OUTPUT_CSV = PROJECT_ROOT / "output" / "wjd_phrase_call_response.csv"
+
+
+# Pitch nizovi iz pocetne rucne Excel tabele jazzdialog3(4).xlsx.
+# Redovi bez oktava i nedovrseni red nisu ukljuceni. Ove reference su samo
+# pozitivan dokaz; osnovni skor i dalje racunaju globalni DTW + incipit.
+MANUAL_REFERENCE_PAIRS = [
+    ([78, 76, 81, 76], [81, 76, 78, 81, 76, 75, 76, 74, 73]),
+    ([74, 76], [73, 76, 77, 78, 73, 76, 74]),
+    ([84, 82, 84, 77, 81, 82, 84], [77, 80, 77, 82, 80, 84, 77]),
+    ([76, 74, 71, 72, 75], [73, 74, 71, 72, 68]),
+    ([62, 63, 59, 62, 60, 63, 59, 62], [60, 63, 65, 62, 64, 65, 64, 63, 62]),
+    ([65, 67, 68, 70, 67, 63, 60], [69, 70, 66, 66, 63, 58]),
+    ([77, 79, 80, 77, 79, 72, 77], [77, 79, 79, 80, 77, 79, 77, 73]),
+    ([84, 72, 80, 77, 80, 80, 80, 80, 76, 72, 80, 76],
+     [80, 77, 80, 80, 79, 77, 76, 77, 79, 80, 77]),
+    ([72, 71, 68, 65, 68, 70, 64, 67, 69, 70, 72, 76, 72, 69],
+     [71, 72, 71, 68, 64, 67, 65]),
+    ([64, 67, 69, 71, 64, 67, 69, 70],
+     [64, 67, 69, 69, 70, 69, 67, 65, 67, 65, 63, 58, 60, 62, 64, 66]),
+    ([76, 74, 71, 69, 67, 69, 66, 67, 67, 69, 66, 67, 69, 71, 67, 69],
+     [74, 71, 74, 71, 69, 67, 59, 63, 57, 59, 59]),
+    ([64, 67, 65, 69, 64], [79, 77, 81, 81, 79, 76, 73, 77, 74, 74]),
+    ([70, 73, 74, 70, 67, 63, 67, 70, 71, 72, 69, 65, 62, 65, 69, 69, 70],
+     [70, 67, 63, 60, 62, 64, 65, 66, 69, 66, 64, 57]),
+    ([71, 72, 75, 79, 80, 79, 80, 80, 79, 80, 79, 80, 70, 72, 75, 79,
+      80, 75, 79, 80, 80, 79, 80, 79, 80],
+     [71, 72, 79, 80, 79, 80, 79, 80, 79, 79, 80, 79, 77, 76, 75, 73,
+      72, 70, 69, 78, 76, 77, 74, 70, 68, 72]),
+    ([79, 75, 67, 69, 74, 67, 68, 72],
+     [66, 69, 75, 67, 69, 74, 72, 67, 63, 67, 60, 63, 64, 66, 68, 69,
+      70, 72, 67, 65, 68, 65]),
+    ([67, 65, 67, 65, 67, 65, 67, 65, 67, 65, 68, 65, 68, 65],
+     [67, 65, 67, 65, 67, 65, 76, 74, 76, 74]),
+]
 
 
 def _resolve_solo(conn, item):
@@ -133,6 +167,7 @@ def _read_manual_feedback(output_csv):
                 continue
             labels[key] = label
             row["validnost"] = label
+            row["automatski_status"] = "CR" if label == "DA" else "ODBIJEN"
             row["call_pitches"] = json.loads(row["call_pitches"])
             row["response_pitches"] = json.loads(row["response_pitches"])
             reviewed_rows[key] = row
@@ -189,71 +224,27 @@ def _positive_example_reward(call, response, accepted_pairs):
     )
 
 
-def _relationship_profile(call, response):
-    """Dve razumljive osobine veze: ceo oblik i duzi incipit."""
-    shape_score = _transposition_aware_distance(call, response)
-    profile_k = min(PROFILE_INCIPIT_K, len(call), len(response))
-    longer_incipit_score = incipit_similarity(call, response, k=profile_k)
-    return shape_score, longer_incipit_score
-
-
-def _profile_correction(call, response, accepted_pairs, rejected_pairs):
-    """Vrati malu korekciju prema najblizem DA i NE profilu.
-
-    Negativna vrednost popravlja skor, a pozitivna ga kaznjava. Obe osobine
-    se skaliraju rasipanjem rucno oznacenih primera da nijedna ne dominira
-    samo zato sto prirodno ima vece brojeve.
-    """
-    if not accepted_pairs or not rejected_pairs:
-        return 0.0, None, None
-
-    accepted_profiles = [
-        _relationship_profile(accepted_call, accepted_response)
-        for accepted_call, accepted_response in accepted_pairs
-    ]
-    rejected_profiles = [
-        _relationship_profile(rejected_call, rejected_response)
-        for rejected_call, rejected_response in rejected_pairs
-    ]
-    all_profiles = accepted_profiles + rejected_profiles
-
-    scales = []
-    for feature_index in range(2):
-        values = [profile[feature_index] for profile in all_profiles]
-        mean = sum(values) / len(values)
-        variance = sum((value - mean) ** 2 for value in values) / len(values)
-        scales.append(max(math.sqrt(variance), 0.1))
-
-    candidate_profile = _relationship_profile(call, response)
-
-    def distance(first, second):
-        squared = sum(
-            ((first[index] - second[index]) / scales[index]) ** 2
-            for index in range(2)
-        )
-        return math.sqrt(squared / 2)
-
-    nearest_da = min(
-        distance(candidate_profile, profile) for profile in accepted_profiles
+def _nearest_pair_distance(call, response, reference_pairs):
+    """Udaljenost kandidata od najslicnijeg rucno potvrđenog para."""
+    if not reference_pairs:
+        return float("inf")
+    return min(
+        (
+            _transposition_aware_distance(call, reference_call)
+            + _transposition_aware_distance(response, reference_response)
+        ) / 2
+        for reference_call, reference_response in reference_pairs
     )
-    nearest_ne = min(
-        distance(candidate_profile, profile) for profile in rejected_profiles
-    )
-    correction = PROFILE_ADJUSTMENT_WEIGHT * (
-        (nearest_da - nearest_ne) / (nearest_da + nearest_ne + 1e-12)
-    )
-    return correction, nearest_da, nearest_ne
 
 
-def _score_split_with_tempo(
+def _incipit_score_with_tempo(
     phrase_pitches,
     phrase_durations,
     split,
     avgtempo,
     incipit_k,
-    alpha,
 ):
-    """Osnovni DTW+incipit skor, sa duzim incipitom samo u brzom tempu."""
+    """Incipt skor, sa vise nota kada su tempo i note veoma brzi."""
     call = phrase_pitches[:split]
     response = phrase_pitches[split:]
     global_score = _dtw_norm(call, response)
@@ -284,6 +275,28 @@ def _score_split_with_tempo(
     else:
         incipit_score = incipit_similarity(call, response, k=effective_k)
 
+    return incipit_score
+
+
+def _score_split_with_tempo(
+    phrase_pitches,
+    phrase_durations,
+    split,
+    avgtempo,
+    incipit_k,
+    alpha,
+):
+    """Osnovni DTW+incipit skor, sa duzim incipitom samo u brzom tempu."""
+    call = phrase_pitches[:split]
+    response = phrase_pitches[split:]
+    global_score = _dtw_norm(call, response)
+    incipit_score = _incipit_score_with_tempo(
+        phrase_pitches,
+        phrase_durations,
+        split,
+        avgtempo,
+        incipit_k,
+    )
     return alpha * global_score + (1 - alpha) * incipit_score
 
 
@@ -299,6 +312,7 @@ def _find_best_scored_split(
     preferred_split=None,
 ):
     """Izaberi najbolju podelu jedne zvanicne WJD fraze."""
+    positive_references = list(accepted_pairs) + MANUAL_REFERENCE_PAIRS
     _split, _score, all_splits = find_best_internal_split(
         phrase_pitches,
         use_intervals=False,
@@ -312,6 +326,24 @@ def _find_best_scored_split(
         response = phrase_pitches[split:]
         if len(response) < math.ceil(MIN_RESPONSE_CALL_RATIO * len(call)):
             continue
+        incipit_evidence = _incipit_score_with_tempo(
+            phrase_pitches,
+            phrase_durations,
+            split,
+            avgtempo,
+            incipit_k,
+        )
+        nearest_positive = _nearest_pair_distance(
+            call,
+            response,
+            positive_references,
+        )
+        if (
+            split != preferred_split
+            and incipit_evidence > STRONG_INCIPIT_LIMIT
+            and nearest_positive >= POSITIVE_REFERENCE_LIMIT
+        ):
+            continue
         base_score = _score_split_with_tempo(
             phrase_pitches,
             phrase_durations,
@@ -320,42 +352,47 @@ def _find_best_scored_split(
             incipit_k,
             alpha,
         )
-        base_scores.append((base_score, split, call, response))
+        base_scores.append(
+            (
+                base_score,
+                split,
+                call,
+                response,
+                incipit_evidence,
+                nearest_positive,
+            )
+        )
 
     best = None
     scores_by_split = {}
-    for base_score, split, call, response in sorted(base_scores):
+    for (
+        base_score,
+        split,
+        call,
+        response,
+        incipit_evidence,
+        nearest_positive,
+    ) in sorted(base_scores):
         # Ovo je najbolji moguci skor koji naredni kandidat moze dostici.
         if (
             best is not None
-            and base_score - POSITIVE_REWARD_WEIGHT - PROFILE_ADJUSTMENT_WEIGHT
-            >= best[7]
+            and base_score - POSITIVE_REWARD_WEIGHT >= best[6]
             and (preferred_split is None or preferred_split in scores_by_split)
         ):
             break
         penalty = _negative_example_penalty(call, response, rejected_pairs)
-        reward = _positive_example_reward(call, response, accepted_pairs)
-        profile_correction, nearest_da, nearest_ne = _profile_correction(
-            call,
-            response,
-            accepted_pairs,
-            rejected_pairs,
-        )
-        adjusted_score = max(
-            0.0,
-            base_score + penalty - reward + profile_correction,
-        )
+        reward = _positive_example_reward(call, response, positive_references)
+        adjusted_score = max(0.0, base_score + penalty - reward)
         split_scores = (
             base_score,
             penalty,
             reward,
-            profile_correction,
-            nearest_da,
-            nearest_ne,
+            incipit_evidence,
+            nearest_positive,
             adjusted_score,
         )
         scores_by_split[split] = split_scores
-        if best is None or adjusted_score < best[7]:
+        if best is None or adjusted_score < best[6]:
             best = (split, *split_scores)
 
     # Rucno potvrđen DA ostaje na istoj tacki podele kroz nove iteracije.
@@ -485,18 +522,16 @@ def search_wjd_phrases(
                         base_score,
                         penalty,
                         reward,
-                        profile_correction,
-                        nearest_da,
-                        nearest_ne,
+                        incipit_evidence,
+                        nearest_positive,
                         adjusted_score,
                     ) = split_scores
                     candidate_scores[_candidate_key(melid, phrase_value, split)] = (
                         base_score,
                         penalty,
                         reward,
-                        profile_correction,
-                        nearest_da,
-                        nearest_ne,
+                        incipit_evidence,
+                        nearest_positive,
                         adjusted_score,
                     )
 
@@ -509,9 +544,8 @@ def search_wjd_phrases(
                     best_base_score,
                     best_penalty,
                     best_reward,
-                    best_profile_correction,
-                    best_nearest_da,
-                    best_nearest_ne,
+                    best_incipit_evidence,
+                    best_nearest_positive,
                     best_score,
                 ) = best
                 if best_score >= review_threshold:
@@ -547,9 +581,8 @@ def search_wjd_phrases(
                     "osnovni_skor": best_base_score,
                     "kazna_ne_primer": best_penalty,
                     "nagrada_da_primer": best_reward,
-                    "profil_korekcija": best_profile_correction,
-                    "profil_da_udaljenost": best_nearest_da,
-                    "profil_ne_udaljenost": best_nearest_ne,
+                    "incipit_dokaz": best_incipit_evidence,
+                    "najblizi_da_primer": best_nearest_positive,
                     "score": score,
                     "phrase_start_seconds": events[start][1],
                     "call_start_seconds": events[start][1],
@@ -602,17 +635,15 @@ def search_wjd_phrases(
                     base_score,
                     penalty,
                     reward,
-                    profile_correction,
-                    nearest_da,
-                    nearest_ne,
+                    incipit_evidence,
+                    nearest_positive,
                     adjusted_score,
                 ) = candidate_scores[key]
                 row["osnovni_skor"] = base_score
                 row["kazna_ne_primer"] = penalty
                 row["nagrada_da_primer"] = reward
-                row["profil_korekcija"] = profile_correction
-                row["profil_da_udaljenost"] = nearest_da
-                row["profil_ne_udaljenost"] = nearest_ne
+                row["incipit_dokaz"] = incipit_evidence
+                row["najblizi_da_primer"] = nearest_positive
                 row["score"] = adjusted_score
             results_to_write.append(row)
 
@@ -622,7 +653,7 @@ def search_wjd_phrases(
         "phrase_start_index", "phrase_end_index_inclusive",
         "split_point_local", "split_point_solo", "osnovni_skor",
         "kazna_ne_primer", "nagrada_da_primer",
-        "profil_korekcija", "profil_da_udaljenost", "profil_ne_udaljenost",
+        "incipit_dokaz", "najblizi_da_primer",
         "score",
         "phrase_start_seconds", "call_start_seconds", "response_start_seconds",
         "phrase_end_seconds", "excerpt_midi",
