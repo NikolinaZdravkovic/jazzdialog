@@ -45,20 +45,20 @@ THRESHOLD = 0.3
 REVIEW_THRESHOLD = 0.45
 MIN_SEGMENT_LEN = 5
 
-# Response moze da se zavrsi pre zvanicnog kraja fraze, ali samo na jasnoj
-# unutrasnjoj granici. Ne dozvoljavamo da kratki eho od 3-4 note sam postane
-# ceo response kada je call mnogo duzi.
+# Response ne sme da bude samo kratak fragment dugog call-a.
 MIN_RESPONSE_CALL_RATIO = 0.75
-LONG_RESPONSE_CALL_RATIO = 1.50
-MIN_UNUSED_TAIL_NOTES = 5
-RESPONSE_BOUNDARY_PITCH_JUMP = 7
-RESPONSE_BOUNDARY_REST_SECONDS = 0.20
 # Rucno odbijen kandidat dobija najvise ovoliku dodatnu kaznu.
 # Skor je distanca, zato veci skor znaci manju verovatnocu izbora.
 NEGATIVE_PENALTY_WEIGHT = 0.20
 NEGATIVE_SIMILARITY_LIMIT = 0.30
 POSITIVE_REWARD_WEIGHT = 0.70
 POSITIVE_SIMILARITY_LIMIT = 0.30
+
+# Mala dodatna korekcija uci profil veze iz oznacenih DA/NE primera.
+# Profil koristi samo oblik cele linije i prvih pet nota; ne menja osnovni
+# DTW + incipit skor i sam ne moze da napravi veliki skok u rezultatu.
+PROFILE_INCIPIT_K = 5
+PROFILE_ADJUSTMENT_WEIGHT = 0.10
 
 # U veoma brzom tempu tri kratke note nisu dovoljan incipit dokaz.
 FAST_TEMPO_BPM = 215.0
@@ -189,6 +189,62 @@ def _positive_example_reward(call, response, accepted_pairs):
     )
 
 
+def _relationship_profile(call, response):
+    """Dve razumljive osobine veze: ceo oblik i duzi incipit."""
+    shape_score = _transposition_aware_distance(call, response)
+    profile_k = min(PROFILE_INCIPIT_K, len(call), len(response))
+    longer_incipit_score = incipit_similarity(call, response, k=profile_k)
+    return shape_score, longer_incipit_score
+
+
+def _profile_correction(call, response, accepted_pairs, rejected_pairs):
+    """Vrati malu korekciju prema najblizem DA i NE profilu.
+
+    Negativna vrednost popravlja skor, a pozitivna ga kaznjava. Obe osobine
+    se skaliraju rasipanjem rucno oznacenih primera da nijedna ne dominira
+    samo zato sto prirodno ima vece brojeve.
+    """
+    if not accepted_pairs or not rejected_pairs:
+        return 0.0, None, None
+
+    accepted_profiles = [
+        _relationship_profile(accepted_call, accepted_response)
+        for accepted_call, accepted_response in accepted_pairs
+    ]
+    rejected_profiles = [
+        _relationship_profile(rejected_call, rejected_response)
+        for rejected_call, rejected_response in rejected_pairs
+    ]
+    all_profiles = accepted_profiles + rejected_profiles
+
+    scales = []
+    for feature_index in range(2):
+        values = [profile[feature_index] for profile in all_profiles]
+        mean = sum(values) / len(values)
+        variance = sum((value - mean) ** 2 for value in values) / len(values)
+        scales.append(max(math.sqrt(variance), 0.1))
+
+    candidate_profile = _relationship_profile(call, response)
+
+    def distance(first, second):
+        squared = sum(
+            ((first[index] - second[index]) / scales[index]) ** 2
+            for index in range(2)
+        )
+        return math.sqrt(squared / 2)
+
+    nearest_da = min(
+        distance(candidate_profile, profile) for profile in accepted_profiles
+    )
+    nearest_ne = min(
+        distance(candidate_profile, profile) for profile in rejected_profiles
+    )
+    correction = PROFILE_ADJUSTMENT_WEIGHT * (
+        (nearest_da - nearest_ne) / (nearest_da + nearest_ne + 1e-12)
+    )
+    return correction, nearest_da, nearest_ne
+
+
 def _score_split_with_tempo(
     phrase_pitches,
     phrase_durations,
@@ -231,88 +287,8 @@ def _score_split_with_tempo(
     return alpha * global_score + (1 - alpha) * incipit_score
 
 
-def _find_response_end(
-    phrase_pitches,
-    phrase_onsets,
-    phrase_durations,
-    split,
-    min_segment_len,
-):
-    """Vrati kraj response-a kao ekskluzivni lokalni indeks.
-
-    Tacka podele se i dalje pronalazi starom, stabilnom pretragom nad celom
-    WJD frazom. Tek nakon toga smemo da odsecemo ocigledan nepovezan rep.
-    Rez se razmatra samo kada je response duzi od call-a i kada iza reza
-    ostaje bar nekoliko nota. Response mora imati najmanje 75% broja nota
-    call-a, pa kratko slucajno poklapanje ne moze postati ceo par.
-    """
-    phrase_end = len(phrase_pitches)
-    call_len = split
-    response_len = phrase_end - split
-    if response_len <= LONG_RESPONSE_CALL_RATIO * call_len:
-        return phrase_end, ""
-
-    min_response_len = max(
-        min_segment_len,
-        math.ceil(MIN_RESPONSE_CALL_RATIO * call_len),
-    )
-    latest_response_len = response_len - MIN_UNUSED_TAIL_NOTES
-    if min_response_len > latest_response_len:
-        return phrase_end, ""
-
-    boundaries = []
-    for kept_response_len in range(min_response_len, latest_response_len + 1):
-        next_local_index = split + kept_response_len
-        previous_local_index = next_local_index - 1
-        pitch_jump = abs(
-            phrase_pitches[next_local_index]
-            - phrase_pitches[previous_local_index]
-        )
-        previous_end = (
-            phrase_onsets[previous_local_index]
-            + phrase_durations[previous_local_index]
-        )
-        rest_seconds = max(
-            0.0,
-            phrase_onsets[next_local_index] - previous_end,
-        )
-
-        if (
-            pitch_jump < RESPONSE_BOUNDARY_PITCH_JUMP
-            and rest_seconds < RESPONSE_BOUNDARY_REST_SECONDS
-        ):
-            continue
-
-        # Biramo najjasniju granicu; kod izjednacenja prednost ima raniji rez.
-        boundary_strength = max(
-            pitch_jump / RESPONSE_BOUNDARY_PITCH_JUMP,
-            rest_seconds / RESPONSE_BOUNDARY_REST_SECONDS,
-        )
-        boundaries.append(
-            (
-                boundary_strength,
-                -kept_response_len,
-                next_local_index,
-                pitch_jump,
-                rest_seconds,
-            )
-        )
-
-    if not boundaries:
-        return phrase_end, ""
-
-    _strength, _earlier, response_end, pitch_jump, rest_seconds = max(boundaries)
-    reason_parts = []
-    if pitch_jump >= RESPONSE_BOUNDARY_PITCH_JUMP:
-        reason_parts.append(f"skok {pitch_jump} polutonova")
-    if rest_seconds >= RESPONSE_BOUNDARY_REST_SECONDS:
-        reason_parts.append(f"pauza {rest_seconds:.3f} s")
-    return response_end, ", ".join(reason_parts)
-
-
 def _find_best_scored_split(
     phrase_pitches,
-    phrase_onsets,
     phrase_durations,
     avgtempo,
     min_segment_len,
@@ -320,6 +296,7 @@ def _find_best_scored_split(
     alpha,
     accepted_pairs,
     rejected_pairs,
+    preferred_split=None,
 ):
     """Izaberi najbolju podelu jedne zvanicne WJD fraze."""
     _split, _score, all_splits = find_best_internal_split(
@@ -332,14 +309,7 @@ def _find_best_scored_split(
     base_scores = []
     for split, _original_base_score in all_splits:
         call = phrase_pitches[:split]
-        response_end, _boundary_reason = _find_response_end(
-            phrase_pitches,
-            phrase_onsets,
-            phrase_durations,
-            split,
-            min_segment_len,
-        )
-        response = phrase_pitches[split:response_end]
+        response = phrase_pitches[split:]
         if len(response) < math.ceil(MIN_RESPONSE_CALL_RATIO * len(call)):
             continue
         base_score = _score_split_with_tempo(
@@ -355,15 +325,42 @@ def _find_best_scored_split(
     best = None
     scores_by_split = {}
     for base_score, split, call, response in sorted(base_scores):
-        # Kazna je uvek pozitivna, pa visi osnovni skor vise ne moze pobediti.
-        if best is not None and base_score - POSITIVE_REWARD_WEIGHT >= best[4]:
+        # Ovo je najbolji moguci skor koji naredni kandidat moze dostici.
+        if (
+            best is not None
+            and base_score - POSITIVE_REWARD_WEIGHT - PROFILE_ADJUSTMENT_WEIGHT
+            >= best[7]
+            and (preferred_split is None or preferred_split in scores_by_split)
+        ):
             break
         penalty = _negative_example_penalty(call, response, rejected_pairs)
         reward = _positive_example_reward(call, response, accepted_pairs)
-        adjusted_score = max(0.0, base_score + penalty - reward)
-        scores_by_split[split] = (base_score, penalty, reward, adjusted_score)
-        if best is None or adjusted_score < best[4]:
-            best = (split, base_score, penalty, reward, adjusted_score)
+        profile_correction, nearest_da, nearest_ne = _profile_correction(
+            call,
+            response,
+            accepted_pairs,
+            rejected_pairs,
+        )
+        adjusted_score = max(
+            0.0,
+            base_score + penalty - reward + profile_correction,
+        )
+        split_scores = (
+            base_score,
+            penalty,
+            reward,
+            profile_correction,
+            nearest_da,
+            nearest_ne,
+            adjusted_score,
+        )
+        scores_by_split[split] = split_scores
+        if best is None or adjusted_score < best[7]:
+            best = (split, *split_scores)
+
+    # Rucno potvrđen DA ostaje na istoj tacki podele kroz nove iteracije.
+    if preferred_split is not None and preferred_split in scores_by_split:
+        best = (preferred_split, *scores_by_split[preferred_split])
 
     return best, scores_by_split
 
@@ -380,8 +377,8 @@ def search_wjd_phrases(
 ):
     """Obradi trazene soloe i vrati ``(found_pairs, summaries)``.
 
-    Za svaku zvanicnu frazu bira se samo jedna najbolja tacka podele.
-    Nepovezan rep response-a moze zatim da se odsece na jasnoj granici.
+    Za svaku zvanicnu frazu bira se samo jedna najbolja tacka podele, a
+    call i response zajedno pokrivaju celu frazu.
     Rezultat se prihvata samo kada je ``score < threshold``.
     """
     db_path = Path(db_path)
@@ -428,7 +425,6 @@ def search_wjd_phrases(
                 continue
 
             pitches = [round(event[2]) for event in events]
-            onsets = [event[1] for event in events]
             durations = [event[3] for event in events]
             found_for_song = 0
             review_for_song = 0
@@ -445,7 +441,6 @@ def search_wjd_phrases(
                     continue
 
                 phrase_pitches = pitches[start:end + 1]  # WJD end je inkluzivan.
-                phrase_onsets = onsets[start:end + 1]
                 phrase_durations = durations[start:end + 1]
                 if len(phrase_pitches) < 2 * min_segment_len:
                     print(
@@ -456,9 +451,21 @@ def search_wjd_phrases(
                     continue
 
                 try:
+                    preferred_split = next(
+                        (
+                            split
+                            for split in range(
+                                min_segment_len,
+                                len(phrase_pitches) - min_segment_len + 1,
+                            )
+                            if manual_labels.get(
+                                _candidate_key(melid, phrase_value, split)
+                            ) == "DA"
+                        ),
+                        None,
+                    )
                     best, scores_by_split = _find_best_scored_split(
                         phrase_pitches,
-                        phrase_onsets,
                         phrase_durations,
                         avgtempo,
                         min_segment_len=min_segment_len,
@@ -466,6 +473,7 @@ def search_wjd_phrases(
                         alpha=alpha,
                         accepted_pairs=accepted_pairs,
                         rejected_pairs=rejected_pairs,
+                        preferred_split=preferred_split,
                     )
                 except Exception as error:
                     print(f"  [GRESKA] Fraza {phrase_value}: {error}; preskacem.")
@@ -473,11 +481,22 @@ def search_wjd_phrases(
                     continue
 
                 for split, split_scores in scores_by_split.items():
-                    base_score, penalty, reward, adjusted_score = split_scores
+                    (
+                        base_score,
+                        penalty,
+                        reward,
+                        profile_correction,
+                        nearest_da,
+                        nearest_ne,
+                        adjusted_score,
+                    ) = split_scores
                     candidate_scores[_candidate_key(melid, phrase_value, split)] = (
                         base_score,
                         penalty,
                         reward,
+                        profile_correction,
+                        nearest_da,
+                        nearest_ne,
                         adjusted_score,
                     )
 
@@ -485,30 +504,37 @@ def search_wjd_phrases(
                     print(f"  [PRESKOCENA] Fraza {phrase_value}: nema dozvoljene podele.")
                     skipped_short += 1
                     continue
-                best_split, best_base_score, best_penalty, best_reward, best_score = best
+                (
+                    best_split,
+                    best_base_score,
+                    best_penalty,
+                    best_reward,
+                    best_profile_correction,
+                    best_nearest_da,
+                    best_nearest_ne,
+                    best_score,
+                ) = best
                 if best_score >= review_threshold:
                     continue
 
                 split = best_split
                 score = best_score
                 call_pitches = phrase_pitches[:split]
-                response_end, response_boundary_reason = _find_response_end(
-                    phrase_pitches,
-                    phrase_onsets,
-                    phrase_durations,
-                    split,
-                    min_segment_len,
+                response_pitches = phrase_pitches[split:]
+                manual_label = manual_labels.get(
+                    _candidate_key(melid, phrase_value, split), ""
                 )
-                response_pitches = phrase_pitches[split:response_end]
-                unused_tail_note_count = len(phrase_pitches) - response_end
-                response_end_solo = start + response_end - 1
-                result = {
-                    "validnost": manual_labels.get(
-                        _candidate_key(melid, phrase_value, split), ""
-                    ),
-                    "automatski_status": (
+                if manual_label == "DA":
+                    automatic_status = "CR"
+                elif manual_label == "NE":
+                    automatic_status = "ODBIJEN"
+                else:
+                    automatic_status = (
                         "CR" if score < threshold else "ZA_PREGLED"
-                    ),
+                    )
+                result = {
+                    "validnost": manual_label,
+                    "automatski_status": automatic_status,
                     "title": title,
                     "performer": performer,
                     "melid": melid,
@@ -518,17 +544,12 @@ def search_wjd_phrases(
                     "phrase_end_index_inclusive": end,
                     "split_point_local": split,
                     "split_point_solo": start + split,
-                    "response_end_local_inclusive": response_end - 1,
-                    "response_end_solo_inclusive": response_end_solo,
-                    "response_end_seconds": (
-                        events[response_end_solo][1]
-                        + events[response_end_solo][3]
-                    ),
-                    "unused_tail_note_count": unused_tail_note_count,
-                    "response_boundary_reason": response_boundary_reason,
                     "osnovni_skor": best_base_score,
                     "kazna_ne_primer": best_penalty,
                     "nagrada_da_primer": best_reward,
+                    "profil_korekcija": best_profile_correction,
+                    "profil_da_udaljenost": best_nearest_da,
+                    "profil_ne_udaljenost": best_nearest_ne,
                     "score": score,
                     "phrase_start_seconds": events[start][1],
                     "call_start_seconds": events[start][1],
@@ -539,12 +560,14 @@ def search_wjd_phrases(
                     "excerpt_midi": "",
                 }
                 found_pairs.append(result)
-                if score < threshold:
+                if automatic_status == "CR":
                     found_for_song += 1
-                    print_label = "CR"
-                else:
+                    print_label = "POTVRDJEN CR" if manual_label == "DA" else "CR"
+                elif automatic_status == "ZA_PREGLED":
                     review_for_song += 1
                     print_label = "ZA PREGLED"
+                else:
+                    print_label = "ODBIJEN"
 
                 print(
                     f"  [{print_label}] Fraza {phrase_value}: "
@@ -552,11 +575,6 @@ def search_wjd_phrases(
                 )
                 print(f"       CALL:     {call_pitches}")
                 print(f"       RESPONSE: {response_pitches}")
-                if unused_tail_note_count:
-                    print(
-                        f"       Neiskoriscen rep: {unused_tail_note_count} nota "
-                        f"({response_boundary_reason})"
-                    )
 
             summaries.append({
                 "title": title,
@@ -580,10 +598,21 @@ def search_wjd_phrases(
     for key, row in reviewed_rows.items():
         if key not in current_keys:
             if key in candidate_scores:
-                base_score, penalty, reward, adjusted_score = candidate_scores[key]
+                (
+                    base_score,
+                    penalty,
+                    reward,
+                    profile_correction,
+                    nearest_da,
+                    nearest_ne,
+                    adjusted_score,
+                ) = candidate_scores[key]
                 row["osnovni_skor"] = base_score
                 row["kazna_ne_primer"] = penalty
                 row["nagrada_da_primer"] = reward
+                row["profil_korekcija"] = profile_correction
+                row["profil_da_udaljenost"] = nearest_da
+                row["profil_ne_udaljenost"] = nearest_ne
                 row["score"] = adjusted_score
             results_to_write.append(row)
 
@@ -591,17 +620,16 @@ def search_wjd_phrases(
         "validnost", "automatski_status",
         "title", "performer", "melid", "phrase_index", "phrase_value",
         "phrase_start_index", "phrase_end_index_inclusive",
-        "split_point_local", "split_point_solo",
-        "response_end_local_inclusive", "response_end_solo_inclusive",
-        "response_end_seconds", "unused_tail_note_count",
-        "response_boundary_reason", "osnovni_skor",
-        "kazna_ne_primer", "nagrada_da_primer", "score",
+        "split_point_local", "split_point_solo", "osnovni_skor",
+        "kazna_ne_primer", "nagrada_da_primer",
+        "profil_korekcija", "profil_da_udaljenost", "profil_ne_udaljenost",
+        "score",
         "phrase_start_seconds", "call_start_seconds", "response_start_seconds",
         "phrase_end_seconds", "excerpt_midi",
         "call_pitches", "response_pitches",
     ]
     with output_csv.open("w", encoding="utf-8-sig", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=columns)
+        writer = csv.DictWriter(stream, fieldnames=columns, extrasaction="ignore")
         writer.writeheader()
         for result in results_to_write:
             row = dict(result)
