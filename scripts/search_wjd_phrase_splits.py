@@ -33,10 +33,7 @@ except ImportError:  # Kada se pokrene direktno iz komandne linije
 # Stavke mogu biti nazivi pesama ili melid brojevi.
 # ---------------------------------------------------------------------------
 SEARCH_ITEMS = [
-    70,  # I Fall in Love Too Easily - Chet Baker
-    71,  # Just Friends - Chet Baker
-    72,  # Let's Get Lost - Chet Baker
-    73, 74, 76, 402, 55, 282
+    1,2,3, 4,5,6,7,8,9,10
 ]
 
 ALPHA = 0.5
