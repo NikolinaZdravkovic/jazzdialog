@@ -40,7 +40,7 @@ SEARCH_ITEMS = [
 
 ALPHA = 0.5
 INCIPIT_K = 3
-THRESHOLD = 0.4
+THRESHOLD = 0.3
 MIN_SEGMENT_LEN = 3
 # Rucno odbijen kandidat dobija najvise ovoliku dodatnu kaznu.
 # Skor je distanca, zato veci skor znaci manju verovatnocu izbora.
