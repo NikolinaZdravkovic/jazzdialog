@@ -10,6 +10,7 @@ Program koristi zvanične WJD granice fraza, traži najbolju podelu na call i re
 - Svaki kandidat ostaje unutar jedne zvanične WJD fraze.
 - Call i response moraju imati najmanje po 5 nota.
 - Niži skor znači bolji kandidat; trenutni prag je `0.3`.
+- Kandidati između `0.3` i `0.45` dobijaju status `ZA_PREGLED`, ali se ne računaju kao automatski CR.
 - Osnovni skor je `alpha * globalni_DTW + (1 - alpha) * incipit`.
 - Kandidati slični ručno odbijenim primerima (`NE`) dobijaju kaznu.
 - Kandidati slični ručno potvrđenim primerima (`DA`) dobijaju nagradu.

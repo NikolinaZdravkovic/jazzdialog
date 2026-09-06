@@ -41,6 +41,7 @@ SEARCH_ITEMS = [
 ALPHA = 0.5
 INCIPIT_K = 3
 THRESHOLD = 0.3
+REVIEW_THRESHOLD = 0.45
 MIN_SEGMENT_LEN = 5
 # Rucno odbijen kandidat dobija najvise ovoliku dodatnu kaznu.
 # Skor je distanca, zato veci skor znaci manju verovatnocu izbora.
@@ -275,6 +276,7 @@ def search_wjd_phrases(
     alpha=ALPHA,
     incipit_k=INCIPIT_K,
     threshold=THRESHOLD,
+    review_threshold=REVIEW_THRESHOLD,
     min_segment_len=MIN_SEGMENT_LEN,
 ):
     """Obradi trazene soloe i vrati ``(found_pairs, summaries)``.
@@ -296,6 +298,8 @@ def search_wjd_phrases(
         raise FileNotFoundError(f"WJD baza nije pronadjena: {db_path}")
     if not 0 <= alpha <= 1:
         raise ValueError("alpha mora biti izmedju 0 i 1")
+    if review_threshold < threshold:
+        raise ValueError("review_threshold mora biti veci ili jednak threshold-u")
     if min_segment_len < 2 or incipit_k < 2:
         raise ValueError("min_segment_len i incipit_k moraju biti najmanje 2")
 
@@ -326,6 +330,7 @@ def search_wjd_phrases(
             pitches = [round(event[2]) for event in events]
             durations = [event[3] for event in events]
             found_for_song = 0
+            review_for_song = 0
             skipped_short = 0
             failed_phrases = 0
 
@@ -378,7 +383,7 @@ def search_wjd_phrases(
                     skipped_short += 1
                     continue
                 best_split, best_base_score, best_penalty, best_reward, best_score = best
-                if best_score >= threshold:
+                if best_score >= review_threshold:
                     continue
 
                 split = best_split
@@ -388,6 +393,9 @@ def search_wjd_phrases(
                 result = {
                     "validnost": manual_labels.get(
                         _candidate_key(melid, phrase_value, split), ""
+                    ),
+                    "automatski_status": (
+                        "CR" if score < threshold else "ZA_PREGLED"
                     ),
                     "title": title,
                     "performer": performer,
@@ -411,9 +419,17 @@ def search_wjd_phrases(
                     "excerpt_midi": "",
                 }
                 found_pairs.append(result)
-                found_for_song += 1
+                if score < threshold:
+                    found_for_song += 1
+                    print_label = "CR"
+                else:
+                    review_for_song += 1
+                    print_label = "ZA PREGLED"
 
-                print(f"  [CR] Fraza {phrase_value}: split={split}, score={score:.4f}")
+                print(
+                    f"  [{print_label}] Fraza {phrase_value}: "
+                    f"split={split}, score={score:.4f}"
+                )
                 print(f"       CALL:     {call_pitches}")
                 print(f"       RESPONSE: {response_pitches}")
 
@@ -423,6 +439,7 @@ def search_wjd_phrases(
                 "melid": melid,
                 "phrase_count": len(sections),
                 "found_count": found_for_song,
+                "review_count": review_for_song,
                 "skipped_short": skipped_short,
                 "failed_phrases": failed_phrases,
             })
@@ -446,7 +463,7 @@ def search_wjd_phrases(
             results_to_write.append(row)
 
     columns = [
-        "validnost",
+        "validnost", "automatski_status",
         "title", "performer", "melid", "phrase_index", "phrase_value",
         "phrase_start_index", "phrase_end_index_inclusive",
         "split_point_local", "split_point_solo", "osnovni_skor",
@@ -472,12 +489,22 @@ def search_wjd_phrases(
     for summary in summaries:
         print(
             f"{summary['title']} (melid={summary['melid']}): "
-            f"{summary['found_count']} CR / {summary['phrase_count']} fraza"
+            f"{summary['found_count']} CR + {summary['review_count']} za pregled "
+            f"/ {summary['phrase_count']} fraza"
         )
-    print(f"Ukupno pronadjenih parova: {len(found_pairs)}")
-    if found_pairs:
-        print("Pronadjeni parovi:")
-        for result in found_pairs:
+    accepted_results = [
+        result for result in found_pairs if result["automatski_status"] == "CR"
+    ]
+    review_results = [
+        result
+        for result in found_pairs
+        if result["automatski_status"] == "ZA_PREGLED"
+    ]
+    print(f"Automatski CR: {len(accepted_results)}")
+    print(f"Za rucni pregled: {len(review_results)}")
+    if review_results:
+        print("Novi kandidati za pregled:")
+        for result in review_results:
             print(
                 f"  - {result['title']}, fraza {result['phrase_value']}, "
                 f"split={result['split_point_local']}, score={result['score']:.4f}"
