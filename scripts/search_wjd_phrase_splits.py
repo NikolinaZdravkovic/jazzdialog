@@ -41,12 +41,12 @@ SEARCH_ITEMS = [
 ALPHA = 0.5
 INCIPIT_K = 3
 THRESHOLD = 0.3
-MIN_SEGMENT_LEN = 3
+MIN_SEGMENT_LEN = 5
 # Rucno odbijen kandidat dobija najvise ovoliku dodatnu kaznu.
 # Skor je distanca, zato veci skor znaci manju verovatnocu izbora.
 NEGATIVE_PENALTY_WEIGHT = 0.20
 NEGATIVE_SIMILARITY_LIMIT = 0.30
-POSITIVE_REWARD_WEIGHT = 0.65
+POSITIVE_REWARD_WEIGHT = 0.70
 POSITIVE_SIMILARITY_LIMIT = 0.30
 
 # U veoma brzom tempu tri kratke note nisu dovoljan incipit dokaz.
@@ -109,6 +109,9 @@ def _read_manual_feedback(output_csv):
     reviewed_rows = {}
     with output_csv.open(encoding="utf-8-sig", newline="") as stream:
         for row in csv.DictReader(stream):
+            # Spojene fraze pripadaju napustenom eksperimentu i ne uticu na model.
+            if "+" in row.get("phrase_value", ""):
+                continue
             key = _candidate_key(
                 row.get("melid", ""),
                 row.get("phrase_value", ""),
@@ -226,9 +229,8 @@ def _find_best_scored_split(
     alpha,
     accepted_pairs,
     rejected_pairs,
-    allowed_splits=None,
 ):
-    """Izaberi najbolju podelu jedne ili dve spojene WJD fraze."""
+    """Izaberi najbolju podelu jedne zvanicne WJD fraze."""
     _split, _score, all_splits = find_best_internal_split(
         phrase_pitches,
         use_intervals=False,
@@ -236,10 +238,6 @@ def _find_best_scored_split(
         incipit_k=incipit_k,
         alpha=alpha,
     )
-    if allowed_splits is not None:
-        allowed_splits = set(allowed_splits)
-        all_splits = [item for item in all_splits if item[0] in allowed_splits]
-
     base_scores = []
     for split, _original_base_score in all_splits:
         call = phrase_pitches[:split]
@@ -418,96 +416,6 @@ def search_wjd_phrases(
                 print(f"  [CR] Fraza {phrase_value}: split={split}, score={score:.4f}")
                 print(f"       CALL:     {call_pitches}")
                 print(f"       RESPONSE: {response_pitches}")
-
-            # Drugi jednostavan prolaz: spoji svake dve susedne WJD fraze.
-            for pair_index in range(len(sections) - 1):
-                first_start, first_end, first_value = sections[pair_index]
-                second_start, second_end, second_value = sections[pair_index + 1]
-                if (
-                    first_start < 0
-                    or first_end < first_start
-                    or second_start <= first_end
-                    or second_end < second_start
-                    or second_end >= len(pitches)
-                ):
-                    continue
-
-                start = first_start
-                end = second_end
-                phrase_value = f"{first_value}+{second_value}"
-                phrase_pitches = pitches[start:end + 1]
-                phrase_durations = durations[start:end + 1]
-                if len(phrase_pitches) < 2 * min_segment_len:
-                    continue
-
-                try:
-                    boundary_split = second_start - start
-                    best, scores_by_split = _find_best_scored_split(
-                        phrase_pitches,
-                        phrase_durations,
-                        avgtempo,
-                        min_segment_len=min_segment_len,
-                        incipit_k=incipit_k,
-                        alpha=alpha,
-                        accepted_pairs=accepted_pairs,
-                        rejected_pairs=rejected_pairs,
-                        allowed_splits=range(boundary_split - 2, boundary_split + 3),
-                    )
-                except Exception as error:
-                    print(
-                        f"  [GRESKA] Spojene fraze {phrase_value}: {error}; preskacem."
-                    )
-                    continue
-
-                for split, split_scores in scores_by_split.items():
-                    base_score, penalty, reward, adjusted_score = split_scores
-                    candidate_scores[_candidate_key(melid, phrase_value, split)] = (
-                        base_score,
-                        penalty,
-                        reward,
-                        adjusted_score,
-                    )
-
-                if best is None:
-                    continue
-                split, base_score, penalty, reward, score = best
-                if score >= threshold:
-                    continue
-
-                call_pitches = phrase_pitches[:split]
-                response_pitches = phrase_pitches[split:]
-                result = {
-                    "validnost": manual_labels.get(
-                        _candidate_key(melid, phrase_value, split), ""
-                    ),
-                    "title": title,
-                    "performer": performer,
-                    "melid": melid,
-                    "phrase_index": f"{pair_index + 1}+{pair_index + 2}",
-                    "phrase_value": phrase_value,
-                    "phrase_start_index": start,
-                    "phrase_end_index_inclusive": end,
-                    "split_point_local": split,
-                    "split_point_solo": start + split,
-                    "osnovni_skor": base_score,
-                    "kazna_ne_primer": penalty,
-                    "nagrada_da_primer": reward,
-                    "score": score,
-                    "phrase_start_seconds": events[start][1],
-                    "call_start_seconds": events[start][1],
-                    "response_start_seconds": events[start + split][1],
-                    "phrase_end_seconds": events[end][1] + events[end][3],
-                    "excerpt_midi": "",
-                    "call_pitches": call_pitches,
-                    "response_pitches": response_pitches,
-                }
-                found_pairs.append(result)
-                found_for_song += 1
-
-                print(
-                    f"  [CR PREKO GRANICE] Fraze {phrase_value}: "
-                    f"split={split}, score={score:.4f}"
-                )
 
             summaries.append({
                 "title": title,

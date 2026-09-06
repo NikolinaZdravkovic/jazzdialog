@@ -7,8 +7,9 @@ Program koristi zvanične WJD granice fraza, traži najbolju podelu na call i re
 ## Trenutna logika
 
 - Call i response zajedno čine jednu zvaničnu WJD frazu.
-- Dodatno se proveravaju dve susedne WJD fraze, sa podelom na granici ili najviše dve note levo/desno.
-- Niži skor znači bolji kandidat; trenutni prag je `0.4`.
+- Svaki kandidat ostaje unutar jedne zvanične WJD fraze.
+- Call i response moraju imati najmanje po 5 nota.
+- Niži skor znači bolji kandidat; trenutni prag je `0.3`.
 - Osnovni skor je `alpha * globalni_DTW + (1 - alpha) * incipit`.
 - Kandidati slični ručno odbijenim primerima (`NE`) dobijaju kaznu.
 - Kandidati slični ručno potvrđenim primerima (`DA`) dobijaju nagradu.
