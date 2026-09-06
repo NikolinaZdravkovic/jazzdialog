@@ -51,14 +51,19 @@ MIN_RESPONSE_CALL_RATIO = 0.75
 # Skor je distanca, zato veci skor znaci manju verovatnocu izbora.
 NEGATIVE_PENALTY_WEIGHT = 0.20
 NEGATIVE_SIMILARITY_LIMIT = 0.30
-POSITIVE_REWARD_WEIGHT = 0.70
-POSITIVE_SIMILARITY_LIMIT = 0.30
 
-# Novi kandidat mora imati veoma jasan pocetak ili biti blizak jednom od
-# rucno potvrđenih parova. Time slicnost od samo nekoliko slucajnih tonova
-# vise nije dovoljna da kandidat udje u rezultat.
+# Nova podela cele fraze mora imati veoma jasan pocetak call-a i response-a.
+# Pozitivne reference koriste se odvojeno, u kontrolisanoj pretrazi prozora.
 STRONG_INCIPIT_LIMIT = 0.25
-POSITIVE_REFERENCE_LIMIT = 0.30
+
+# Dodatna, kontrolisana pretraga unutrasnjih susednih delova. Duzine prozora
+# moraju vec postojati u rucnoj Excel anotaciji; zato se ne isprobavaju sve
+# cetiri granice i pretraga ne eksplodira kombinatorno.
+INTERNAL_REFERENCE_LIMIT = 0.30
+INTERNAL_APPROX_MIN_NOTES = 6
+INTERNAL_MIN_RESPONSE_CALL_RATIO = 0.65
+INTERNAL_MAX_RESPONSE_CALL_RATIO = 2.50
+INTERNAL_NMS_IOU = 0.50
 
 # U veoma brzom tempu tri kratke note nisu dovoljan incipit dokaz.
 FAST_TEMPO_BPM = 215.0
@@ -102,6 +107,9 @@ MANUAL_REFERENCE_PAIRS = [
      [67, 65, 67, 65, 67, 65, 76, 74, 76, 74]),
 ]
 
+# Brojevi redova iz pocetne Excel tabele, istim redosledom kao parovi iznad.
+MANUAL_REFERENCE_IDS = [1, 3, 4, 5, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+
 
 def _resolve_solo(conn, item):
     """Vrati (melid, title, performer, avgtempo) ili prijavi problem."""
@@ -139,8 +147,15 @@ def _resolve_solo(conn, item):
     return melid, title, performer, avgtempo
 
 
-def _candidate_key(melid, phrase_value, split):
-    return str(melid), str(phrase_value), str(split)
+def _candidate_key(melid, phrase_value, split, call_start=0, response_end=""):
+    """Jedinstveni kljuc ukljucuje sve tri granice kandidata."""
+    return (
+        str(melid),
+        str(phrase_value),
+        str(call_start),
+        str(split),
+        str(response_end),
+    )
 
 
 def _read_manual_feedback(output_csv):
@@ -157,19 +172,56 @@ def _read_manual_feedback(output_csv):
             # Spojene fraze pripadaju napustenom eksperimentu i ne uticu na model.
             if "+" in row.get("phrase_value", ""):
                 continue
-            key = _candidate_key(
-                row.get("melid", ""),
-                row.get("phrase_value", ""),
-                row.get("split_point_local", ""),
-            )
             label = row.get("validnost", "").strip().upper()
             if label not in {"DA", "NE"}:
                 continue
+            row["call_pitches"] = json.loads(row["call_pitches"])
+            row["response_pitches"] = json.loads(row["response_pitches"])
+            call_start = int(row.get("call_start_local") or 0)
+            split = int(row.get("split_point_local") or len(row["call_pitches"]))
+            response_end = int(
+                row.get("response_end_local_exclusive")
+                or split + len(row["response_pitches"])
+            )
+            key = _candidate_key(
+                row.get("melid", ""),
+                row.get("phrase_value", ""),
+                split,
+                call_start,
+                response_end,
+            )
             labels[key] = label
             row["validnost"] = label
             row["automatski_status"] = "CR" if label == "DA" else "ODBIJEN"
-            row["call_pitches"] = json.loads(row["call_pitches"])
-            row["response_pitches"] = json.loads(row["response_pitches"])
+            if row.get("candidate_source") in {None, "", "cela_fraza"}:
+                row["candidate_source"] = "cela_WJD_fraza"
+            row["decision_reason"] = row.get("decision_reason") or (
+                "rucna_oznaka_DA" if label == "DA" else "rucna_oznaka_NE"
+            )
+            # Stariji CSV redovi mogu sadrzati napustenu pozitivnu nagradu.
+            # U aktuelnom sistemu score je osnovni skor + eventualna NE kazna.
+            try:
+                row["nagrada_da_primer"] = 0.0
+                row["score"] = float(row.get("osnovni_skor") or 0.0) + float(
+                    row.get("kazna_ne_primer") or 0.0
+                )
+            except (TypeError, ValueError):
+                pass
+            row["manual_reference_id"] = row.get("manual_reference_id", "")
+            row["call_start_local"] = call_start
+            row["response_end_local_exclusive"] = response_end
+            row["call_start_solo"] = row.get("call_start_solo") or (
+                int(row.get("phrase_start_index") or 0) + call_start
+            )
+            row["response_end_solo_inclusive"] = row.get(
+                "response_end_solo_inclusive"
+            ) or (
+                int(row.get("phrase_start_index") or 0) + response_end - 1
+            )
+            row["reference_distance"] = row.get("reference_distance", "")
+            row["response_end_seconds"] = row.get("response_end_seconds") or row.get(
+                "phrase_end_seconds", ""
+            )
             reviewed_rows[key] = row
             if label == "DA":
                 accepted_pairs.append((row["call_pitches"], row["response_pitches"]))
@@ -205,36 +257,132 @@ def _negative_example_penalty(call, response, rejected_pairs):
     )
 
 
-def _positive_example_reward(call, response, accepted_pairs):
-    """Nagradi samo kandidata koji lici na vec rucno potvrđen par."""
-    if not accepted_pairs:
-        return 0.0
-
-    nearest_distance = min(
-        (
-            _transposition_aware_distance(call, accepted_call)
-            + _transposition_aware_distance(response, accepted_response)
-        ) / 2
-        for accepted_call, accepted_response in accepted_pairs
-    )
-    if nearest_distance >= POSITIVE_SIMILARITY_LIMIT:
-        return 0.0
-    return POSITIVE_REWARD_WEIGHT * (
-        1 - nearest_distance / POSITIVE_SIMILARITY_LIMIT
-    )
+def _unique_pairs(pairs):
+    """Ukloni duple rucne reference bez menjanja redosleda."""
+    unique = []
+    seen = set()
+    for call, response in pairs:
+        key = tuple(call), tuple(response)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append((call, response))
+    return unique
 
 
 def _nearest_pair_distance(call, response, reference_pairs):
     """Udaljenost kandidata od najslicnijeg rucno potvrđenog para."""
     if not reference_pairs:
         return float("inf")
-    return min(
-        (
+    nearest = float("inf")
+    for reference_call, reference_response in reference_pairs:
+        distance = (
             _transposition_aware_distance(call, reference_call)
             + _transposition_aware_distance(response, reference_response)
         ) / 2
-        for reference_call, reference_response in reference_pairs
-    )
+        nearest = min(nearest, distance)
+        if nearest == 0.0:
+            break
+    return nearest
+
+
+def _manual_reference_variants():
+    """Vrati dozvoljene sablone, ukljucujuci poznatu vezanu granicnu notu."""
+    for reference_id, (call, response) in zip(
+        MANUAL_REFERENCE_IDS, MANUAL_REFERENCE_PAIRS
+    ):
+        yield reference_id, call, response, "normalna_granica"
+        # U rucnom paru 17 ista vezana nota je zapisana na obe strane granice.
+        # MIDI nota moze pripadati samo jednom segmentu, pa je dodeljujemo response-u.
+        if reference_id == 17:
+            yield reference_id, call[:-1], response, "vezana_granica"
+
+
+def _window_iou(first, second):
+    """Presek kroz uniju dva [start, end) prozora."""
+    intersection = max(0, min(first[1], second[1]) - max(first[0], second[0]))
+    union = max(first[1], second[1]) - min(first[0], second[0])
+    return intersection / union if union else 0.0
+
+
+def _find_internal_reference_candidates(phrase_pitches):
+    """Nadji unutrasnje susedne prozore nalik rucnim Excel parovima.
+
+    Broj prozora je O(R*n); DTW svakog prozora dodaje faktor L^2, gde je L
+    duzina sablona. Ovde su R i L mali i fiksirani rucnom tabelom.
+    Prvo se prihvataju tacne apsolutne kopije rucnih parova. Priblizni
+    kandidati moraju biti dovoljno dugi i uravnotezeni i ostaju za pregled.
+    """
+    raw = []
+    n = len(phrase_pitches)
+    for reference_id, ref_call, ref_response, boundary_kind in (
+        _manual_reference_variants()
+    ):
+        call_len = len(ref_call)
+        response_len = len(ref_response)
+        window_len = call_len + response_len
+        if call_len < MIN_SEGMENT_LEN or response_len < MIN_SEGMENT_LEN:
+            continue
+        if window_len > n:
+            continue
+
+        ratio = response_len / call_len
+        approximate_length_allowed = (
+            call_len >= INTERNAL_APPROX_MIN_NOTES
+            and response_len >= INTERNAL_APPROX_MIN_NOTES
+            and INTERNAL_MIN_RESPONSE_CALL_RATIO
+            <= ratio
+            <= INTERNAL_MAX_RESPONSE_CALL_RATIO
+        )
+        for call_start in range(0, n - window_len + 1):
+            split = call_start + call_len
+            response_end = split + response_len
+            call = phrase_pitches[call_start:split]
+            response = phrase_pitches[split:response_end]
+            exact = call == ref_call and response == ref_response
+            if exact:
+                reference_distance = 0.0
+            elif approximate_length_allowed:
+                reference_distance = (
+                    _transposition_aware_distance(call, ref_call)
+                    + _transposition_aware_distance(response, ref_response)
+                ) / 2
+                if reference_distance >= INTERNAL_REFERENCE_LIMIT:
+                    continue
+            else:
+                continue
+
+            raw.append({
+                "call_start": call_start,
+                "split": split,
+                "response_end": response_end,
+                "call": call,
+                "response": response,
+                "reference_id": reference_id,
+                "reference_distance": reference_distance,
+                "exact": exact,
+                "boundary_kind": boundary_kind,
+            })
+
+    # Non-max suppression uklanja skoro iste rezultate pomerene za 1-2 note.
+    kept = []
+    for candidate in sorted(
+        raw,
+        key=lambda item: (
+            not item["exact"],
+            item["reference_distance"],
+            item["call_start"],
+        ),
+    ):
+        window = (candidate["call_start"], candidate["response_end"])
+        if any(
+            _window_iou(window, (old["call_start"], old["response_end"]))
+            >= INTERNAL_NMS_IOU
+            for old in kept
+        ):
+            continue
+        kept.append(candidate)
+    return kept
 
 
 def _incipit_score_with_tempo(
@@ -307,12 +455,10 @@ def _find_best_scored_split(
     min_segment_len,
     incipit_k,
     alpha,
-    accepted_pairs,
     rejected_pairs,
     preferred_split=None,
 ):
     """Izaberi najbolju podelu jedne zvanicne WJD fraze."""
-    positive_references = list(accepted_pairs) + MANUAL_REFERENCE_PAIRS
     _split, _score, all_splits = find_best_internal_split(
         phrase_pitches,
         use_intervals=False,
@@ -333,15 +479,9 @@ def _find_best_scored_split(
             avgtempo,
             incipit_k,
         )
-        nearest_positive = _nearest_pair_distance(
-            call,
-            response,
-            positive_references,
-        )
         if (
             split != preferred_split
             and incipit_evidence > STRONG_INCIPIT_LIMIT
-            and nearest_positive >= POSITIVE_REFERENCE_LIMIT
         ):
             continue
         base_score = _score_split_with_tempo(
@@ -359,7 +499,6 @@ def _find_best_scored_split(
                 call,
                 response,
                 incipit_evidence,
-                nearest_positive,
             )
         )
 
@@ -371,18 +510,11 @@ def _find_best_scored_split(
         call,
         response,
         incipit_evidence,
-        nearest_positive,
     ) in sorted(base_scores):
-        # Ovo je najbolji moguci skor koji naredni kandidat moze dostici.
-        if (
-            best is not None
-            and base_score - POSITIVE_REWARD_WEIGHT >= best[6]
-            and (preferred_split is None or preferred_split in scores_by_split)
-        ):
-            break
         penalty = _negative_example_penalty(call, response, rejected_pairs)
-        reward = _positive_example_reward(call, response, positive_references)
-        adjusted_score = max(0.0, base_score + penalty - reward)
+        reward = 0.0
+        nearest_positive = float("inf")
+        adjusted_score = base_score + penalty
         split_scores = (
             base_score,
             penalty,
@@ -414,9 +546,10 @@ def search_wjd_phrases(
 ):
     """Obradi trazene soloe i vrati ``(found_pairs, summaries)``.
 
-    Za svaku zvanicnu frazu bira se samo jedna najbolja tacka podele, a
-    call i response zajedno pokrivaju celu frazu.
-    Rezultat se prihvata samo kada je ``score < threshold``.
+    Osnovna pretraga bira jednu podelu cele WJD fraze. Dodatna pretraga
+    proverava samo unutrasnje susedne prozore cije duzine vec postoje u
+    rucnoj Excel anotaciji. Tacni Excel parovi su potvrđeni, a slicni parovi
+    se nikada ne prihvataju automatski vec ostaju za rucni pregled.
     """
     db_path = Path(db_path)
     output_csv = Path(output_csv)
@@ -424,6 +557,7 @@ def search_wjd_phrases(
         _read_manual_feedback(output_csv)
     )
     found_pairs = []
+    found_by_key = {}
     candidate_scores = {}
     summaries = []
     processed_melids = set()
@@ -479,135 +613,319 @@ def search_wjd_phrases(
 
                 phrase_pitches = pitches[start:end + 1]  # WJD end je inkluzivan.
                 phrase_durations = durations[start:end + 1]
-                if len(phrase_pitches) < 2 * min_segment_len:
+
+                # 1) Stabilna osnovna pretraga: call + response = cela fraza.
+                if len(phrase_pitches) >= 2 * min_segment_len:
+                    try:
+                        preferred_split = next(
+                            (
+                                split
+                                for split in range(
+                                    min_segment_len,
+                                    len(phrase_pitches) - min_segment_len + 1,
+                                )
+                                if manual_labels.get(
+                                    _candidate_key(
+                                        melid,
+                                        phrase_value,
+                                        split,
+                                        0,
+                                        len(phrase_pitches),
+                                    )
+                                ) == "DA"
+                            ),
+                            None,
+                        )
+                        best, scores_by_split = _find_best_scored_split(
+                            phrase_pitches,
+                            phrase_durations,
+                            avgtempo,
+                            min_segment_len=min_segment_len,
+                            incipit_k=incipit_k,
+                            alpha=alpha,
+                            rejected_pairs=rejected_pairs,
+                            preferred_split=preferred_split,
+                        )
+                    except Exception as error:
+                        print(f"  [GRESKA] Fraza {phrase_value}: {error}; preskacem.")
+                        failed_phrases += 1
+                        best = None
+                        scores_by_split = {}
+
+                    for split, split_scores in scores_by_split.items():
+                        (
+                            base_score,
+                            penalty,
+                            reward,
+                            incipit_evidence,
+                            nearest_positive,
+                            adjusted_score,
+                        ) = split_scores
+                        key = _candidate_key(
+                            melid, phrase_value, split, 0, len(phrase_pitches)
+                        )
+                        candidate_scores[key] = {
+                            "osnovni_skor": base_score,
+                            "kazna_ne_primer": penalty,
+                            "nagrada_da_primer": reward,
+                            "incipit_dokaz": incipit_evidence,
+                            "najblizi_da_primer": nearest_positive,
+                            "score": adjusted_score,
+                        }
+
+                    if best is None:
+                        print(
+                            f"  [PRESKOCENA] Fraza {phrase_value}: "
+                            "nema dozvoljene podele cele fraze."
+                        )
+                    else:
+                        (
+                            split,
+                            base_score,
+                            penalty,
+                            reward,
+                            incipit_evidence,
+                            nearest_positive,
+                            score,
+                        ) = best
+                        key = _candidate_key(
+                            melid, phrase_value, split, 0, len(phrase_pitches)
+                        )
+                        manual_label = manual_labels.get(key, "")
+                        if score < review_threshold or manual_label == "DA":
+                            if manual_label == "DA":
+                                automatic_status = "CR"
+                            elif manual_label == "NE":
+                                automatic_status = "ODBIJEN"
+                            else:
+                                automatic_status = (
+                                    "CR" if score < threshold else "ZA_PREGLED"
+                                )
+                            result = {
+                                "validnost": manual_label,
+                                "automatski_status": automatic_status,
+                                "candidate_source": "cela_WJD_fraza",
+                                "decision_reason": (
+                                    "rucna_oznaka_DA"
+                                    if manual_label == "DA"
+                                    else "rucna_oznaka_NE"
+                                    if manual_label == "NE"
+                                    else "osnovni_skor_ispod_praga"
+                                    if automatic_status == "CR"
+                                    else "osnovni_skor_za_pregled"
+                                ),
+                                "manual_reference_id": "",
+                                "title": title,
+                                "performer": performer,
+                                "melid": melid,
+                                "phrase_index": phrase_index,
+                                "phrase_value": phrase_value,
+                                "phrase_start_index": start,
+                                "phrase_end_index_inclusive": end,
+                                "call_start_local": 0,
+                                "split_point_local": split,
+                                "response_end_local_exclusive": len(phrase_pitches),
+                                "call_start_solo": start,
+                                "split_point_solo": start + split,
+                                "response_end_solo_inclusive": end,
+                                "osnovni_skor": base_score,
+                                "kazna_ne_primer": penalty,
+                                "nagrada_da_primer": reward,
+                                "incipit_dokaz": incipit_evidence,
+                                "najblizi_da_primer": nearest_positive,
+                                "reference_distance": "",
+                                "score": score,
+                                "phrase_start_seconds": events[start][1],
+                                "call_start_seconds": events[start][1],
+                                "response_start_seconds": events[start + split][1],
+                                "response_end_seconds": events[end][1] + events[end][3],
+                                "phrase_end_seconds": events[end][1] + events[end][3],
+                                "call_pitches": phrase_pitches[:split],
+                                "response_pitches": phrase_pitches[split:],
+                                "excerpt_midi": "",
+                            }
+                            found_pairs.append(result)
+                            found_by_key[key] = result
+                else:
                     print(
                         f"  [PRESKOCENA] Fraza {phrase_value}: {len(phrase_pitches)} nota; "
-                        f"potrebno je najmanje {2 * min_segment_len}."
+                        f"cela fraza trazi najmanje {2 * min_segment_len}."
                     )
                     skipped_short += 1
-                    continue
 
+                # 2) Kontrolisana unutrasnja pretraga prema rucnim sablonima.
+                phrase_negative_count = sum(
+                    1
+                    for key, label in manual_labels.items()
+                    if key[0] == str(melid)
+                    and key[1] == str(phrase_value)
+                    and label == "NE"
+                )
                 try:
-                    preferred_split = next(
-                        (
-                            split
-                            for split in range(
-                                min_segment_len,
-                                len(phrase_pitches) - min_segment_len + 1,
-                            )
-                            if manual_labels.get(
-                                _candidate_key(melid, phrase_value, split)
-                            ) == "DA"
-                        ),
-                        None,
-                    )
-                    best, scores_by_split = _find_best_scored_split(
-                        phrase_pitches,
-                        phrase_durations,
-                        avgtempo,
-                        min_segment_len=min_segment_len,
-                        incipit_k=incipit_k,
-                        alpha=alpha,
-                        accepted_pairs=accepted_pairs,
-                        rejected_pairs=rejected_pairs,
-                        preferred_split=preferred_split,
+                    internal_candidates = _find_internal_reference_candidates(
+                        phrase_pitches
                     )
                 except Exception as error:
-                    print(f"  [GRESKA] Fraza {phrase_value}: {error}; preskacem.")
+                    print(
+                        f"  [GRESKA] Unutrasnja pretraga fraze {phrase_value}: "
+                        f"{error}; preskacem."
+                    )
                     failed_phrases += 1
-                    continue
+                    internal_candidates = []
 
-                for split, split_scores in scores_by_split.items():
-                    (
-                        base_score,
-                        penalty,
-                        reward,
-                        incipit_evidence,
-                        nearest_positive,
-                        adjusted_score,
-                    ) = split_scores
-                    candidate_scores[_candidate_key(melid, phrase_value, split)] = (
-                        base_score,
-                        penalty,
-                        reward,
-                        incipit_evidence,
-                        nearest_positive,
-                        adjusted_score,
+                for candidate in internal_candidates:
+                    if not candidate["exact"] and phrase_negative_count >= 2:
+                        continue
+                    call_start = candidate["call_start"]
+                    split = candidate["split"]
+                    response_end = candidate["response_end"]
+                    key = _candidate_key(
+                        melid, phrase_value, split, call_start, response_end
                     )
-
-                if best is None:
-                    print(f"  [PRESKOCENA] Fraza {phrase_value}: nema dozvoljene podele.")
-                    skipped_short += 1
-                    continue
-                (
-                    best_split,
-                    best_base_score,
-                    best_penalty,
-                    best_reward,
-                    best_incipit_evidence,
-                    best_nearest_positive,
-                    best_score,
-                ) = best
-                if best_score >= review_threshold:
-                    continue
-
-                split = best_split
-                score = best_score
-                call_pitches = phrase_pitches[:split]
-                response_pitches = phrase_pitches[split:]
-                manual_label = manual_labels.get(
-                    _candidate_key(melid, phrase_value, split), ""
-                )
-                if manual_label == "DA":
-                    automatic_status = "CR"
-                elif manual_label == "NE":
-                    automatic_status = "ODBIJEN"
-                else:
-                    automatic_status = (
-                        "CR" if score < threshold else "ZA_PREGLED"
+                    window_pitches = phrase_pitches[call_start:response_end]
+                    window_durations = phrase_durations[call_start:response_end]
+                    split_in_window = split - call_start
+                    call = candidate["call"]
+                    response = candidate["response"]
+                    base_score = _score_split_with_tempo(
+                        window_pitches,
+                        window_durations,
+                        split_in_window,
+                        avgtempo,
+                        incipit_k,
+                        alpha,
                     )
-                result = {
-                    "validnost": manual_label,
-                    "automatski_status": automatic_status,
-                    "title": title,
-                    "performer": performer,
-                    "melid": melid,
-                    "phrase_index": phrase_index,
-                    "phrase_value": phrase_value,
-                    "phrase_start_index": start,
-                    "phrase_end_index_inclusive": end,
-                    "split_point_local": split,
-                    "split_point_solo": start + split,
-                    "osnovni_skor": best_base_score,
-                    "kazna_ne_primer": best_penalty,
-                    "nagrada_da_primer": best_reward,
-                    "incipit_dokaz": best_incipit_evidence,
-                    "najblizi_da_primer": best_nearest_positive,
-                    "score": score,
-                    "phrase_start_seconds": events[start][1],
-                    "call_start_seconds": events[start][1],
-                    "response_start_seconds": events[start + split][1],
-                    "phrase_end_seconds": events[end][1] + events[end][3],
-                    "call_pitches": call_pitches,
-                    "response_pitches": response_pitches,
-                    "excerpt_midi": "",
-                }
-                found_pairs.append(result)
-                if automatic_status == "CR":
-                    found_for_song += 1
-                    print_label = "POTVRDJEN CR" if manual_label == "DA" else "CR"
-                elif automatic_status == "ZA_PREGLED":
-                    review_for_song += 1
+                    incipit_evidence = _incipit_score_with_tempo(
+                        window_pitches,
+                        window_durations,
+                        split_in_window,
+                        avgtempo,
+                        incipit_k,
+                    )
+                    penalty = _negative_example_penalty(call, response, rejected_pairs)
+                    positive_references = _unique_pairs(
+                        list(accepted_pairs) + MANUAL_REFERENCE_PAIRS
+                    )
+                    nearest_positive = _nearest_pair_distance(
+                        call, response, positive_references
+                    )
+                    # Referentna udaljenost odlucuje da li se prozor prikazuje,
+                    # ali ne obara osnovni CR skor. Tako skor ostaje citljiv.
+                    reward = 0.0
+                    score = base_score + penalty
+                    candidate_scores[key] = {
+                        "osnovni_skor": base_score,
+                        "kazna_ne_primer": penalty,
+                        "nagrada_da_primer": reward,
+                        "incipit_dokaz": incipit_evidence,
+                        "najblizi_da_primer": nearest_positive,
+                        "reference_distance": candidate["reference_distance"],
+                        "score": score,
+                    }
+
+                    manual_label = manual_labels.get(key, "")
+                    if manual_label == "DA":
+                        automatic_status = "CR"
+                        decision_reason = "rucna_oznaka_DA"
+                    elif manual_label == "NE":
+                        automatic_status = "ODBIJEN"
+                        decision_reason = "rucna_oznaka_NE"
+                    elif candidate["exact"]:
+                        # Ovo nije automatska pretpostavka: par je vec oznacen
+                        # kao validan u korisnikovoj pocetnoj Excel anotaciji.
+                        manual_label = "DA"
+                        automatic_status = "CR"
+                        decision_reason = "tacan_par_iz_pocetne_Excel_tabele"
+                    else:
+                        automatic_status = "ZA_PREGLED"
+                        decision_reason = "slican_rucnom_paru_obavezan_pregled"
+
+                    source = (
+                        "rucna_referenca_tacna"
+                        if candidate["exact"]
+                        else "slicna_rucnoj_referenci"
+                    )
+                    if key in found_by_key:
+                        existing = found_by_key[key]
+                        existing["candidate_source"] += "+" + source
+                        existing["manual_reference_id"] = candidate["reference_id"]
+                        existing["reference_distance"] = candidate[
+                            "reference_distance"
+                        ]
+                        if manual_label:
+                            existing["validnost"] = manual_label
+                            existing["automatski_status"] = automatic_status
+                            existing["decision_reason"] = decision_reason
+                        continue
+
+                    response_last = start + response_end - 1
+                    result = {
+                        "validnost": manual_label,
+                        "automatski_status": automatic_status,
+                        "candidate_source": source,
+                        "decision_reason": decision_reason,
+                        "manual_reference_id": candidate["reference_id"],
+                        "title": title,
+                        "performer": performer,
+                        "melid": melid,
+                        "phrase_index": phrase_index,
+                        "phrase_value": phrase_value,
+                        "phrase_start_index": start,
+                        "phrase_end_index_inclusive": end,
+                        "call_start_local": call_start,
+                        "split_point_local": split,
+                        "response_end_local_exclusive": response_end,
+                        "call_start_solo": start + call_start,
+                        "split_point_solo": start + split,
+                        "response_end_solo_inclusive": response_last,
+                        "osnovni_skor": base_score,
+                        "kazna_ne_primer": penalty,
+                        "nagrada_da_primer": reward,
+                        "incipit_dokaz": incipit_evidence,
+                        "najblizi_da_primer": nearest_positive,
+                        "reference_distance": candidate["reference_distance"],
+                        "score": score,
+                        "phrase_start_seconds": events[start][1],
+                        "call_start_seconds": events[start + call_start][1],
+                        "response_start_seconds": events[start + split][1],
+                        "response_end_seconds": (
+                            events[response_last][1] + events[response_last][3]
+                        ),
+                        "phrase_end_seconds": events[end][1] + events[end][3],
+                        "call_pitches": call,
+                        "response_pitches": response,
+                        "excerpt_midi": "",
+                    }
+                    found_pairs.append(result)
+                    found_by_key[key] = result
+
+            song_results = [
+                result for result in found_pairs if result["melid"] == melid
+            ]
+            found_for_song = sum(
+                result["automatski_status"] == "CR" for result in song_results
+            )
+            review_for_song = sum(
+                result["automatski_status"] == "ZA_PREGLED"
+                for result in song_results
+            )
+            for result in song_results:
+                status = result["automatski_status"]
+                if status == "CR":
+                    print_label = (
+                        "POTVRDJEN CR" if result["validnost"] == "DA" else "CR"
+                    )
+                elif status == "ZA_PREGLED":
                     print_label = "ZA PREGLED"
                 else:
                     print_label = "ODBIJEN"
-
                 print(
-                    f"  [{print_label}] Fraza {phrase_value}: "
-                    f"split={split}, score={score:.4f}"
+                    f"  [{print_label}] Fraza {result['phrase_value']}: "
+                    f"granice={result['call_start_local']}:"
+                    f"{result['split_point_local']}:"
+                    f"{result['response_end_local_exclusive']}, "
+                    f"score={float(result['score']):.4f}"
                 )
-                print(f"       CALL:     {call_pitches}")
-                print(f"       RESPONSE: {response_pitches}")
 
             summaries.append({
                 "title": title,
@@ -625,38 +943,34 @@ def search_wjd_phrases(
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     results_to_write = list(found_pairs)
     current_keys = {
-        _candidate_key(result["melid"], result["phrase_value"], result["split_point_local"])
+        _candidate_key(
+            result["melid"],
+            result["phrase_value"],
+            result["split_point_local"],
+            result["call_start_local"],
+            result["response_end_local_exclusive"],
+        )
         for result in found_pairs
     }
     for key, row in reviewed_rows.items():
         if key not in current_keys:
             if key in candidate_scores:
-                (
-                    base_score,
-                    penalty,
-                    reward,
-                    incipit_evidence,
-                    nearest_positive,
-                    adjusted_score,
-                ) = candidate_scores[key]
-                row["osnovni_skor"] = base_score
-                row["kazna_ne_primer"] = penalty
-                row["nagrada_da_primer"] = reward
-                row["incipit_dokaz"] = incipit_evidence
-                row["najblizi_da_primer"] = nearest_positive
-                row["score"] = adjusted_score
+                row.update(candidate_scores[key])
             results_to_write.append(row)
 
     columns = [
         "validnost", "automatski_status",
+        "candidate_source", "decision_reason", "manual_reference_id",
         "title", "performer", "melid", "phrase_index", "phrase_value",
         "phrase_start_index", "phrase_end_index_inclusive",
-        "split_point_local", "split_point_solo", "osnovni_skor",
+        "call_start_local", "split_point_local", "response_end_local_exclusive",
+        "call_start_solo", "split_point_solo", "response_end_solo_inclusive",
+        "osnovni_skor",
         "kazna_ne_primer", "nagrada_da_primer",
         "incipit_dokaz", "najblizi_da_primer",
-        "score",
+        "reference_distance", "score",
         "phrase_start_seconds", "call_start_seconds", "response_start_seconds",
-        "phrase_end_seconds", "excerpt_midi",
+        "response_end_seconds", "phrase_end_seconds", "excerpt_midi",
         "call_pitches", "response_pitches",
     ]
     with output_csv.open("w", encoding="utf-8-sig", newline="") as stream:
@@ -694,7 +1008,10 @@ def search_wjd_phrases(
         for result in review_results:
             print(
                 f"  - {result['title']}, fraza {result['phrase_value']}, "
-                f"split={result['split_point_local']}, score={result['score']:.4f}"
+                f"granice={result['call_start_local']}:"
+                f"{result['split_point_local']}:"
+                f"{result['response_end_local_exclusive']}, "
+                f"score={result['score']:.4f}"
             )
     print(f"CSV sacuvan u: {output_csv}")
 

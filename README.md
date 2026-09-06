@@ -2,7 +2,7 @@
 
 JazzDialog je naučno-istraživački Python projekat čiji je cilj izgradnja dataseta **call-and-response parova u jazzu**.
 
-Projekat analizira MIDI transkripcije improvizovanih sola iz [Weimar Jazz Database](https://jazzomat.hfm-weimar.de/dbformat/dboverview.html). Za svaku zvanično anotiranu WJD frazu algoritam traži najbolju podelu na call i response i računa skor na osnovu DTW sličnosti melodije i sličnosti početaka segmenata. Response mora imati najmanje 75% broja nota call-a, čime se odbacuju neuravnoteženi parovi sa veoma kratkim response-om.
+Projekat analizira MIDI transkripcije improvizovanih sola iz [Weimar Jazz Database](https://jazzomat.hfm-weimar.de/dbformat/dboverview.html). Za svaku zvanično anotiranu WJD frazu algoritam traži najbolju podelu na call i response i računa skor na osnovu DTW sličnosti melodije i sličnosti početaka segmenata. Pored podele cele fraze, proverava kontrolisane unutrašnje prozore čije su dužine naučene iz ručne Excel anotacije. Response cele fraze mora imati najmanje 75% broja nota call-a, čime se odbacuju neuravnoteženi parovi sa veoma kratkim response-om.
 
 Rezultati se čuvaju u `output/wjd_phrase_call_response.csv`. Svaki kandidat se zatim ručno preslušava i označava:
 
@@ -10,7 +10,7 @@ Rezultati se čuvaju u `output/wjd_phrase_call_response.csv`. Svaki kandidat se 
 - `NE` — kandidat nije call-and-response;
 - prazno — kandidat još nije pregledan.
 
-Ručne oznake koriste se u sledećim iteracijama kao nagrade i kazne u scoring sistemu. Početna ručna Excel anotacija služi kao biblioteka pozitivnih melodijskih referenci. Krajnji rezultat istraživanja je provereni dataset jazz call-and-response primera, uz algoritam koji pomaže u njihovom pronalaženju.
+Ručne `NE` oznake dodaju kaznu sličnim kandidatima u sledećim iteracijama. Početna ručna Excel anotacija služi kao biblioteka pozitivnih melodijskih referenci za unutrašnje prozore. Kolone `candidate_source` i `decision_reason` pokazuju zašto je svaki red dodat, dok `call_start_local`, `split_point_local` i `response_end_local_exclusive` čuvaju njegove tačne granice unutar WJD fraze. Krajnji rezultat istraživanja je provereni dataset jazz call-and-response primera, uz algoritam koji pomaže u njihovom pronalaženju.
 
 ## Pokretanje
 
