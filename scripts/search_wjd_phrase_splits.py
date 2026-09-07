@@ -2,7 +2,6 @@
 
 import csv
 import json
-import math
 import re
 from pathlib import Path
 
@@ -38,13 +37,15 @@ SEARCH_ITEMS = [
 ]
 
 ALPHA = 0.5
-INCIPIT_K = 3
+INCIPIT_K = 5
 THRESHOLD = 0.3
 REVIEW_THRESHOLD = 0.45
 MIN_SEGMENT_LEN = 5
 
-# Response ne sme da bude samo kratak fragment dugog call-a.
+# Novi kandidat mora imati dva dovoljno uravnotezena muzicka dela.
 MIN_RESPONSE_CALL_RATIO = 0.75
+MAX_RESPONSE_CALL_RATIO = 2.00
+MIN_DURATION_BALANCE = 0.45
 # Rucno odbijen kandidat dobija najvise ovoliku dodatnu kaznu.
 # Skor je distanca, zato veci skor znaci manju verovatnocu izbora.
 NEGATIVE_PENALTY_WEIGHT = 0.20
@@ -558,7 +559,20 @@ def _find_best_scored_split(
     for split, _original_base_score in all_splits:
         call = phrase_pitches[:split]
         response = phrase_pitches[split:]
-        if len(response) < math.ceil(MIN_RESPONSE_CALL_RATIO * len(call)):
+        length_ratio = len(response) / len(call)
+        call_duration = sum(phrase_durations[:split])
+        response_duration = sum(phrase_durations[split:])
+        duration_balance = (
+            min(call_duration, response_duration)
+            / max(call_duration, response_duration)
+            if call_duration > 0 and response_duration > 0
+            else 0.0
+        )
+        if split != preferred_split and (
+            length_ratio < MIN_RESPONSE_CALL_RATIO
+            or length_ratio > MAX_RESPONSE_CALL_RATIO
+            or duration_balance < MIN_DURATION_BALANCE
+        ):
             continue
         incipit_evidence = _incipit_score_with_tempo(
             phrase_pitches,
@@ -701,6 +715,20 @@ def search_wjd_phrases(
 
                 phrase_pitches = pitches[start:end + 1]  # WJD end je inkluzivan.
                 phrase_durations = durations[start:end + 1]
+                phrase_negative_count = sum(
+                    1
+                    for candidate_key, label in manual_labels.items()
+                    if candidate_key[0] == str(melid)
+                    and candidate_key[1] == str(phrase_value)
+                    and label == "NE"
+                )
+                phrase_positive_count = sum(
+                    1
+                    for candidate_key, label in manual_labels.items()
+                    if candidate_key[0] == str(melid)
+                    and candidate_key[1] == str(phrase_value)
+                    and label == "DA"
+                )
 
                 # 1) Stabilna osnovna pretraga: call + response = cela fraza.
                 if len(phrase_pitches) >= 2 * min_segment_len:
@@ -780,7 +808,14 @@ def search_wjd_phrases(
                             melid, phrase_value, split, 0, len(phrase_pitches)
                         )
                         manual_label = manual_labels.get(key, "")
-                        if score < review_threshold or manual_label == "DA":
+                        phrase_rejected = (
+                            not manual_label
+                            and phrase_negative_count > 0
+                            and phrase_positive_count == 0
+                        )
+                        if (
+                            score < review_threshold or manual_label == "DA"
+                        ) and not phrase_rejected:
                             if manual_label == "DA":
                                 automatic_status = "CR"
                             elif manual_label == "NE":
@@ -842,13 +877,6 @@ def search_wjd_phrases(
                     skipped_short += 1
 
                 # 2) Kontrolisana unutrasnja pretraga prema rucnim sablonima.
-                phrase_negative_count = sum(
-                    1
-                    for key, label in manual_labels.items()
-                    if key[0] == str(melid)
-                    and key[1] == str(phrase_value)
-                    and label == "NE"
-                )
                 try:
                     internal_candidates = _find_internal_reference_candidates(
                         phrase_pitches
@@ -862,7 +890,11 @@ def search_wjd_phrases(
                     internal_candidates = []
 
                 for candidate in internal_candidates:
-                    if not candidate["exact"] and phrase_negative_count >= 2:
+                    if (
+                        not candidate["exact"]
+                        and phrase_negative_count > 0
+                        and phrase_positive_count == 0
+                    ):
                         continue
                     call_start = candidate["call_start"]
                     split = candidate["split"]
