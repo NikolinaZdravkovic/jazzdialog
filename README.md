@@ -2,7 +2,7 @@
 
 JazzDialog je naučno-istraživački Python projekat čiji je cilj izgradnja dataseta **call-and-response parova u jazzu**.
 
-Projekat analizira MIDI transkripcije improvizovanih sola iz [Weimar Jazz Database](https://jazzomat.hfm-weimar.de/dbformat/dboverview.html). Za svaku zvanično anotiranu WJD frazu algoritam traži najbolju podelu na call i response i računa skor na osnovu DTW sličnosti melodije i prvih pet nota oba segmenta. Pored podele cele fraze, proverava kontrolisane unutrašnje prozore čije su dužine naučene iz ručne Excel anotacije. Novi kandidat mora imati uravnotežen broj nota i trajanje oba dela; ručno potvrđeni primeri ostaju sačuvani i kada su muzički opravdani izuzeci.
+Projekat analizira MIDI transkripcije improvizovanih sola iz [Weimar Jazz Database](https://jazzomat.hfm-weimar.de/dbformat/dboverview.html). Za svaku zvanično anotiranu WJD frazu algoritam traži najbolju podelu na call i response i računa skor na osnovu DTW sličnosti melodije i prvih pet nota oba segmenta. Pored podele cele fraze, proverava kontrolisane unutrašnje prozore čije su dužine naučene iz ručne Excel anotacije. Novi kandidat mora imati uravnotežen broj nota i trajanje oba dela, a call i response moraju trajati najmanje približno jednu sekundu; ručno potvrđeni primeri ostaju sačuvani i kada su muzički opravdani izuzeci.
 
 Rezultati se čuvaju u `output/wjd_phrase_call_response.csv`. Svaki kandidat se zatim ručno preslušava i označava:
 

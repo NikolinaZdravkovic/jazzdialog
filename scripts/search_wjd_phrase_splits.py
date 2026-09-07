@@ -46,6 +46,7 @@ MIN_SEGMENT_LEN = 5
 MIN_RESPONSE_CALL_RATIO = 0.75
 MAX_RESPONSE_CALL_RATIO = 2.00
 MIN_DURATION_BALANCE = 0.45
+MIN_SEGMENT_DURATION_SECONDS = 1.00
 # Rucno odbijen kandidat dobija najvise ovoliku dodatnu kaznu.
 # Skor je distanca, zato veci skor znaci manju verovatnocu izbora.
 NEGATIVE_PENALTY_WEIGHT = 0.20
@@ -572,6 +573,8 @@ def _find_best_scored_split(
             length_ratio < MIN_RESPONSE_CALL_RATIO
             or length_ratio > MAX_RESPONSE_CALL_RATIO
             or duration_balance < MIN_DURATION_BALANCE
+            or call_duration < MIN_SEGMENT_DURATION_SECONDS
+            or response_duration < MIN_SEGMENT_DURATION_SECONDS
         ):
             continue
         incipit_evidence = _incipit_score_with_tempo(
@@ -907,6 +910,16 @@ def search_wjd_phrases(
                     split_in_window = split - call_start
                     call = candidate["call"]
                     response = candidate["response"]
+                    call_duration = sum(window_durations[:split_in_window])
+                    response_duration = sum(window_durations[split_in_window:])
+                    if (
+                        not candidate["exact"]
+                        and (
+                            call_duration < MIN_SEGMENT_DURATION_SECONDS
+                            or response_duration < MIN_SEGMENT_DURATION_SECONDS
+                        )
+                    ):
+                        continue
                     base_score = _score_split_with_tempo(
                         window_pitches,
                         window_durations,
