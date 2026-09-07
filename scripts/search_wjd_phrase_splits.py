@@ -33,16 +33,17 @@ except ImportError:  # Kada se pokrene direktno iz komandne linije
 # Stavke mogu biti nazivi pesama ili melid brojevi.
 # ---------------------------------------------------------------------------
 SEARCH_ITEMS = [
-    70,  # I Fall in Love Too Easily - Chet Baker
-    71,  # Just Friends - Chet Baker
-    72,  # Let's Get Lost - Chet Baker
-    73, 74, 76, 402, 55, 282
+    1,2,3,4,5,6,7,8,9,10
 ]
 
 ALPHA = 0.5
 INCIPIT_K = 3
 THRESHOLD = 0.4
 MIN_SEGMENT_LEN = 3
+# Ogranicenja se primenjuju pre skora, pa DA nagrada ne moze da ih zaobidje.
+MIN_SEGMENT_SOUND_SECONDS = 1.0
+MIN_RESPONSE_CALL_RATIO = 0.75
+MAX_RESPONSE_CALL_RATIO = 2.0
 # Rucno odbijen kandidat dobija najvise ovoliku dodatnu kaznu.
 # Skor je distanca, zato veci skor znaci manju verovatnocu izbora.
 NEGATIVE_PENALTY_WEIGHT = 0.20
@@ -343,6 +344,12 @@ def _find_best_scored_split(
     for split, _original_base_score in all_splits:
         call = phrase_pitches[:split]
         response = phrase_pitches[split:]
+        ratio = len(response) / len(call)
+        if not MIN_RESPONSE_CALL_RATIO <= ratio <= MAX_RESPONSE_CALL_RATIO:
+            continue
+        # Zbir trajanja nota ne ukljucuje pauzu do sledeceg segmenta.
+        if min(sum(phrase_durations[:split]), sum(phrase_durations[split:])) < MIN_SEGMENT_SOUND_SECONDS:
+            continue
         base_score = _score_split_with_tempo(
             phrase_pitches,
             phrase_durations,
