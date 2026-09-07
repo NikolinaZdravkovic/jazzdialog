@@ -33,7 +33,7 @@ except ImportError:  # Kada se pokrene direktno iz komandne linije
 # Stavke mogu biti nazivi pesama ili melid brojevi.
 # ---------------------------------------------------------------------------
 SEARCH_ITEMS = [
-    1,2,3, 4,5,6,7,8,9,10
+    16,17,18,19,20
 ]
 
 INCIPIT_K = 5
@@ -103,7 +103,7 @@ def _candidate_key(melid, phrase_value, split, call_start=0, response_end=""):
 
 
 def _read_manual_feedback(output_csv):
-    """Ucitaj rucne oznake i zapamti DA/NE pitch parove."""
+    """Ucitaj postojece redove i zapamti DA/NE pitch parove."""
     if not output_csv.exists():
         return {}, [], [], {}
 
@@ -117,8 +117,6 @@ def _read_manual_feedback(output_csv):
             if "+" in row.get("phrase_value", ""):
                 continue
             label = row.get("validnost", "").strip().upper()
-            if label not in {"DA", "NE"}:
-                continue
             row["call_pitches"] = json.loads(row["call_pitches"])
             row["response_pitches"] = json.loads(row["response_pitches"])
             call_start = int(row.get("call_start_local") or 0)
@@ -134,6 +132,11 @@ def _read_manual_feedback(output_csv):
                 call_start,
                 response_end,
             )
+            # I nepregledani redovi moraju ostati u CSV-u kada se sledeci put
+            # pokrene druga grupa pesama.
+            reviewed_rows[key] = row
+            if label not in {"DA", "NE"}:
+                continue
             labels[key] = label
             row["validnost"] = label
             row["automatski_status"] = "CR" if label == "DA" else "ODBIJEN"
@@ -166,7 +169,6 @@ def _read_manual_feedback(output_csv):
             row["response_end_seconds"] = row.get("response_end_seconds") or row.get(
                 "phrase_end_seconds", ""
             )
-            reviewed_rows[key] = row
             if label == "DA":
                 accepted_pairs.append((row["call_pitches"], row["response_pitches"]))
             else:
