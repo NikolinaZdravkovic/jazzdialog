@@ -33,7 +33,7 @@ except ImportError:  # Kada se pokrene direktno iz komandne linije
 # Stavke mogu biti nazivi pesama ili melid brojevi.
 # ---------------------------------------------------------------------------
 SEARCH_ITEMS = [
-    16,17,18,19,20
+    11,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20
 ]
 
 INCIPIT_K = 5
@@ -44,6 +44,8 @@ MIN_SEGMENT_LEN = 5
 # Novi kandidat mora imati dva dovoljno uravnotezena pitch niza.
 MIN_RESPONSE_CALL_RATIO = 0.75
 MAX_RESPONSE_CALL_RATIO = 2.00
+MAX_UNUSED_EDGE_NOTES = 4
+MIN_UNIQUE_PITCHES = 4
 # Rucno odbijen kandidat dobija najvise ovoliku dodatnu kaznu.
 # Skor je distanca, zato veci skor znaci manju verovatnocu izbora.
 NEGATIVE_PENALTY_WEIGHT = 0.20
@@ -384,6 +386,69 @@ def _find_best_scored_split(
     return best, scores_by_split, dtw_gap, relative_dtw_gap
 
 
+def _find_best_edge_trimmed_split(
+    phrase_pitches,
+    phrase_durations,
+    avgtempo,
+    min_segment_len,
+    incipit_k,
+    rejected_pairs,
+):
+    """Dozvoli najvise nekoliko neiskoriscenih nota na ivicama fraze."""
+    candidates = []
+    n = len(phrase_pitches)
+    for call_start in range(MAX_UNUSED_EDGE_NOTES + 1):
+        for unused_after in range(MAX_UNUSED_EDGE_NOTES + 1):
+            if call_start == 0 and unused_after == 0:
+                continue
+            if call_start + unused_after > MAX_UNUSED_EDGE_NOTES:
+                continue
+            response_end = n - unused_after
+            if response_end - call_start < 2 * min_segment_len:
+                continue
+            window = phrase_pitches[call_start:response_end]
+            if len(set(window)) < MIN_UNIQUE_PITCHES:
+                continue
+            best, _scores, _gap, _relative_gap = _find_best_scored_split(
+                window,
+                phrase_durations[call_start:response_end],
+                avgtempo,
+                min_segment_len,
+                incipit_k,
+                [],
+            )
+            if best is None:
+                continue
+            split, base, penalty, reward, incipit, nearest_positive, score = best
+            candidates.append(
+                (
+                    base,
+                    call_start,
+                    call_start + split,
+                    response_end,
+                    penalty,
+                    reward,
+                    incipit,
+                    nearest_positive,
+                    score,
+                )
+            )
+
+    if not candidates:
+        return None, float("inf"), float("inf")
+    candidates.sort(key=lambda item: (item[0], item[1], item[2], item[3]))
+    chosen = list(candidates[0])
+    call = phrase_pitches[chosen[1]:chosen[2]]
+    response = phrase_pitches[chosen[2]:chosen[3]]
+    chosen[4] = _negative_example_penalty(call, response, rejected_pairs)
+    chosen[8] = chosen[0] + chosen[4]
+    chosen = tuple(chosen)
+    second = candidates[1][0] if len(candidates) > 1 else float("inf")
+    gap = second - chosen[0]
+    relative_gap = gap / chosen[0] if chosen[0] > 0 else float("inf")
+    return chosen, gap, relative_gap
+
+
 def search_wjd_phrases(
     search_items,
     db_path=DB_PATH,
@@ -476,6 +541,10 @@ def search_wjd_phrases(
 
                 # 1) Stabilna osnovna pretraga: call + response = cela fraza.
                 if len(phrase_pitches) >= 2 * min_segment_len:
+                    call_start_local = 0
+                    response_end_local = len(phrase_pitches)
+                    candidate_source = "cela_WJD_fraza"
+                    preferred_split = None
                     try:
                         preferred_split = next(
                             (
@@ -518,6 +587,48 @@ def search_wjd_phrases(
                         dtw_gap = float("inf")
                         relative_dtw_gap = float("inf")
 
+                    # Ako cela fraza nije dovoljno dobra, proveri samo mala
+                    # skracenja njenih ivica. Call i response ostaju susedni.
+                    if preferred_split is None and (
+                        best is None or best[6] >= review_threshold
+                    ):
+                        trimmed, trimmed_gap, trimmed_relative_gap = (
+                            _find_best_edge_trimmed_split(
+                                phrase_pitches,
+                                phrase_durations,
+                                avgtempo,
+                                min_segment_len,
+                                incipit_k,
+                                rejected_pairs,
+                            )
+                        )
+                        if trimmed is not None and (
+                            best is None or trimmed[0] < best[1]
+                        ):
+                            (
+                                base_score,
+                                call_start_local,
+                                split,
+                                response_end_local,
+                                penalty,
+                                reward,
+                                incipit_evidence,
+                                nearest_positive,
+                                score,
+                            ) = trimmed
+                            best = (
+                                split,
+                                base_score,
+                                penalty,
+                                reward,
+                                incipit_evidence,
+                                nearest_positive,
+                                score,
+                            )
+                            dtw_gap = trimmed_gap
+                            relative_dtw_gap = trimmed_relative_gap
+                            candidate_source = "WJD_fraza_skracene_ivice"
+
                     for split, split_scores in scores_by_split.items():
                         (
                             base_score,
@@ -528,8 +639,20 @@ def search_wjd_phrases(
                             adjusted_score,
                         ) = split_scores
                         key = _candidate_key(
-                            melid, phrase_value, split, 0, len(phrase_pitches)
+                            melid,
+                            phrase_value,
+                            split,
+                            call_start_local,
+                            response_end_local,
                         )
+                        candidate_scores[key] = {
+                            "osnovni_skor": base_score,
+                            "kazna_ne_primer": penalty,
+                            "nagrada_da_primer": reward,
+                            "incipit_dokaz": incipit_evidence,
+                            "najblizi_da_primer": nearest_positive,
+                            "score": score,
+                        }
                         candidate_scores[key] = {
                             "osnovni_skor": base_score,
                             "drugi_dtw_skor": "",
@@ -580,7 +703,7 @@ def search_wjd_phrases(
                             result = {
                                 "validnost": manual_label,
                                 "automatski_status": automatic_status,
-                                "candidate_source": "cela_WJD_fraza",
+                                "candidate_source": candidate_source,
                                 "decision_reason": (
                                     "rucna_oznaka_DA"
                                     if manual_label == "DA"
@@ -598,12 +721,12 @@ def search_wjd_phrases(
                                 "phrase_value": phrase_value,
                                 "phrase_start_index": start,
                                 "phrase_end_index_inclusive": end,
-                                "call_start_local": 0,
+                                "call_start_local": call_start_local,
                                 "split_point_local": split,
-                                "response_end_local_exclusive": len(phrase_pitches),
-                                "call_start_solo": start,
+                                "response_end_local_exclusive": response_end_local,
+                                "call_start_solo": start + call_start_local,
                                 "split_point_solo": start + split,
-                                "response_end_solo_inclusive": end,
+                                "response_end_solo_inclusive": start + response_end_local - 1,
                                 "osnovni_skor": base_score,
                                 "drugi_dtw_skor": (
                                     base_score + dtw_gap
@@ -623,12 +746,15 @@ def search_wjd_phrases(
                                 "reference_distance": "",
                                 "score": score,
                                 "phrase_start_seconds": events[start][1],
-                                "call_start_seconds": events[start][1],
+                                "call_start_seconds": events[start + call_start_local][1],
                                 "response_start_seconds": events[start + split][1],
-                                "response_end_seconds": events[end][1] + events[end][3],
+                                "response_end_seconds": (
+                                    events[start + response_end_local - 1][1]
+                                    + events[start + response_end_local - 1][3]
+                                ),
                                 "phrase_end_seconds": events[end][1] + events[end][3],
-                                "call_pitches": phrase_pitches[:split],
-                                "response_pitches": phrase_pitches[split:],
+                                "call_pitches": phrase_pitches[call_start_local:split],
+                                "response_pitches": phrase_pitches[split:response_end_local],
                                 "excerpt_midi": "",
                             }
                             found_pairs.append(result)
