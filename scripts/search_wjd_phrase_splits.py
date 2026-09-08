@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path
 
+from dtaidistance import dtw
 
 try:  # Kada se uvozi kao scripts.search_wjd_phrase_splits
     from .extract_wjd_phrases import (
@@ -194,6 +195,57 @@ def _resolve_solo(conn, item):
 
 def _candidate_key(melid, phrase_value, split):
     return str(melid), str(phrase_value), str(split)
+
+
+def _longest_approximate_interval_run(call, response, tolerance=2):
+    """Najduzi uzastopni slican intervalski motiv, nezavisno od transpozicije."""
+    call_intervals = [second - first for first, second in zip(call, call[1:])]
+    response_intervals = [
+        second - first for first, second in zip(response, response[1:])
+    ]
+    previous = [0] * (len(response_intervals) + 1)
+    longest = 0
+    for call_interval in call_intervals:
+        current = [0]
+        for index, response_interval in enumerate(response_intervals, start=1):
+            length = (
+                previous[index - 1] + 1
+                if abs(call_interval - response_interval) <= tolerance
+                else 0
+            )
+            current.append(length)
+            longest = max(longest, length)
+        previous = current
+    return longest / min(len(call_intervals), len(response_intervals))
+
+
+def _candidate_diagnostics(call, response, call_start, response_start, response_end):
+    """Mere za redosled rucnog pregleda; ne odlucuju automatski DA/NE."""
+    _distance, paths = dtw.warping_paths(call, response)
+    path = dtw.best_path(paths)
+    moves = [
+        (next_call - current_call, next_response - current_response)
+        for (current_call, current_response), (next_call, next_response) in zip(
+            path, path[1:]
+        )
+    ]
+    diagonal_fraction = (
+        sum(move == (1, 1) for move in moves) / len(moves) if moves else 1.0
+    )
+    motif_run_fraction = _longest_approximate_interval_run(call, response)
+    call_seconds = response_start - call_start
+    response_seconds = response_end - response_start
+    note_density = max(len(call) / call_seconds, len(response) / response_seconds)
+
+    # Niza vrednost znaci: sporiji kandidat sa duzim ponovljenim motivom.
+    # Formula je samo za redosled rucnog pregleda, ne za automatsku oznaku.
+    review_priority = 0.15 * note_density - motif_run_fraction
+    return {
+        "note_density": note_density,
+        "motif_run_fraction": motif_run_fraction,
+        "dtw_diagonal_fraction": diagonal_fraction,
+        "review_priority": review_priority,
+    }
 
 
 def _read_manual_feedback(output_csv):
@@ -548,6 +600,15 @@ def search_wjd_phrases(
                     "response_pitches": response_pitches,
                     "excerpt_midi": "",
                 }
+                result.update(
+                    _candidate_diagnostics(
+                        call_pitches,
+                        response_pitches,
+                        result["call_start_seconds"],
+                        result["response_start_seconds"],
+                        result["phrase_end_seconds"],
+                    )
+                )
                 found_pairs.append(result)
                 found_for_song += 1
 
@@ -641,6 +702,15 @@ def search_wjd_phrases(
                     "call_pitches": call_pitches,
                     "response_pitches": response_pitches,
                 }
+                result.update(
+                    _candidate_diagnostics(
+                        call_pitches,
+                        response_pitches,
+                        result["call_start_seconds"],
+                        result["response_start_seconds"],
+                        result["phrase_end_seconds"],
+                    )
+                )
                 found_pairs.append(result)
                 found_for_song += 1
 
@@ -687,7 +757,16 @@ def search_wjd_phrases(
         result["automatski_status"] = "ODBIJEN" if result.get("validnost") == "NE" else "CR"
         merged[key] = result
     results_to_write = list(merged.values())
-    results_to_write.sort(key=lambda row: bool(row.get("validnost", "").strip()))
+
+    def review_order(row):
+        if row.get("validnost", "").strip():
+            return (1, 0.0)
+        try:
+            return (0, float(row.get("review_priority", "inf")))
+        except (TypeError, ValueError):
+            return (0, float("inf"))
+
+    results_to_write.sort(key=review_order)
     _export_result_midis(db_path, results_to_write)
     columns = list(dict.fromkeys(key for row in results_to_write for key in row))
     if not columns:

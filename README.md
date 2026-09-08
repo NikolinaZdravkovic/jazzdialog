@@ -34,6 +34,8 @@ Nakon što se kandidati označe sa `DA` ili `NE`, pokreni:
 
 Skripta samo čita CSV i poredi odvojeno DTW, intervalski motiv, oblik DTW puta i gustinu nota. Ne menja rezultate, MIDI fajlove ni ručne oznake.
 
+Za nove neproverene kandidate pretraga u CSV dodaje kolone `note_density`, `motif_run_fraction`, `dtw_diagonal_fraction` i `review_priority`. Kandidati sa manjim `review_priority` stoje prvi za ručni pregled; to je redosled pregleda, ne automatska oznaka `DA`.
+
 ## Izvor podataka
 
 Weimar Jazz Database je deo [Jazzomat Research Project](https://jazzomat.hfm-weimar.de/) i dostupna je pod Open Data Commons Open Database License (ODbL).
