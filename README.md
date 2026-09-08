@@ -2,7 +2,7 @@
 
 JazzDialog je naučno-istraživački Python projekat čiji je cilj izgradnja dataseta **call-and-response parova u jazzu**.
 
-Aktuelna detekcija vracena je na algoritam iz commita `7bd878a` (5. septembar 2026). Koristi DTW + incipit, alpha 0.5, najmanje 3 note po segmentu i prag 0.4. Ova istorijska verzija ukljucuje i spajanje dve susedne WJD fraze, prilagodjavanje incipita brzom tempu i nagrade/kazne prema rucnim oznakama. Nije potvrdjeno da je upravo ovaj commit dao raniji rezultat 6 dobrih od 8.
+Aktuelna detekcija poredi call i response unutar jedne zvanične WJD fraze pomoću globalnog DTW-a i incipita. Za nove kandidate traži najmanje 5 nota po segmentu, ograničava odnos dužina call-a i response-a i pamti ručno označene `NE` podele. Spajanje susednih WJD fraza je isključeno za nove kandidate, dok raniji ručno označeni redovi preko granice ostaju sačuvani u CSV-u kao istorijski primeri.
 
 Rezultati se čuvaju u `output/wjd_phrase_call_response.csv`. Svaki kandidat se zatim ručno preslušava i označava:
 
@@ -12,7 +12,7 @@ Rezultati se čuvaju u `output/wjd_phrase_call_response.csv`. Svaki kandidat se 
 
 Pri svakom pokretanju za svaki red iz CSV-a automatski se generiše MIDI isečak u `output/wjd_phrase_excerpts`. Isečak sadrži samo pronađeni call i response sa originalnim ritmom, a kolona `excerpt_midi` čuva njegovu tačnu putanju.
 
-Svi raniji CSV redovi, rucne oznake i istorijski skorovi ostaju sacuvani. Novi redovi imaju `candidate_source=verzija_7bd878a`; njihove skorove ne treba direktno porediti sa skorovima prethodnog DTW eksperimenta. MIDI izvoz i cuvanje savremenih CSV kolona zadrzani su radi kompatibilnosti.
+Svi raniji CSV redovi i ručne oznake ostaju sačuvani. Ako se CSV promeni tokom pretrage, skripta ga neće prepisati.
 
 ## Pokretanje
 
@@ -23,6 +23,16 @@ U `SEARCH_ITEMS` unutar `scripts/search_wjd_phrase_splits.py` upiši željene WJ
 ```
 
 Potrebni paketi su `dtaidistance` i `pretty_midi`. Datoteka `wjazzd.db` čuva se lokalno u folderu `data_midi` i nije uključena u repozitorijum.
+
+## Evaluacija ručnih oznaka
+
+Nakon što se kandidati označe sa `DA` ili `NE`, pokreni:
+
+```powershell
+.\venv\Scripts\python.exe scripts\evaluate_labelled_pairs.py
+```
+
+Skripta samo čita CSV i poredi odvojeno DTW, intervalski motiv, oblik DTW puta i gustinu nota. Ne menja rezultate, MIDI fajlove ni ručne oznake.
 
 ## Izvor podataka
 

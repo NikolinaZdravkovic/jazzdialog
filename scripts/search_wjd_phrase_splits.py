@@ -33,17 +33,20 @@ except ImportError:  # Kada se pokrene direktno iz komandne linije
 # Stavke mogu biti nazivi pesama ili melid brojevi.
 # ---------------------------------------------------------------------------
 SEARCH_ITEMS = [
-    1,2,3,4,5,6,7,8,9,10
+    6,7,8,9,10
 ]
 
-ALPHA = 0.5
+ALPHA = 0.8
 INCIPIT_K = 3
 THRESHOLD = 0.4
-MIN_SEGMENT_LEN = 3
+MIN_SEGMENT_LEN = 5
 # Ogranicenja se primenjuju pre skora, pa DA nagrada ne moze da ih zaobidje.
 MIN_SEGMENT_SOUND_SECONDS = 1.0
-MIN_RESPONSE_CALL_RATIO = 0.75
+MIN_RESPONSE_CALL_RATIO = 0.5
 MAX_RESPONSE_CALL_RATIO = 2.0
+# Mentorka je trazila stabilnu pretragu samo unutar jedne zvanicne WJD fraze.
+# Stari, vec rucno ocenjeni redovi preko granice ostaju u CSV-u kao istorija.
+ENABLE_CROSS_PHRASE_SEARCH = False
 # Rucno odbijen kandidat dobija najvise ovoliku dodatnu kaznu.
 # Skor je distanca, zato veci skor znaci manju verovatnocu izbora.
 NEGATIVE_PENALTY_WEIGHT = 0.20
@@ -327,6 +330,7 @@ def _find_best_scored_split(
     accepted_pairs,
     rejected_pairs,
     allowed_splits=None,
+    blocked_splits=None,
 ):
     """Izaberi najbolju podelu jedne ili dve spojene WJD fraze."""
     _split, _score, all_splits = find_best_internal_split(
@@ -339,6 +343,8 @@ def _find_best_scored_split(
     if allowed_splits is not None:
         allowed_splits = set(allowed_splits)
         all_splits = [item for item in all_splits if item[0] in allowed_splits]
+    if blocked_splits:
+        all_splits = [item for item in all_splits if item[0] not in blocked_splits]
 
     base_scores = []
     for split, _original_base_score in all_splits:
@@ -392,6 +398,7 @@ def search_wjd_phrases(
     """
     db_path = Path(db_path)
     output_csv = Path(output_csv)
+    original_csv_bytes = output_csv.read_bytes() if output_csv.exists() else None
     previous_rows = []
     if output_csv.exists():
         with output_csv.open(encoding="utf-8-sig", newline="") as stream:
@@ -399,6 +406,20 @@ def search_wjd_phrases(
     manual_labels, accepted_pairs, rejected_pairs, reviewed_rows = (
         _read_manual_feedback(output_csv)
     )
+    # Rucno odbijen split ne sme ponovo da pobedi samo zato sto je njegova
+    # kazna manja od razlike izmedju dva DTW skora. Kandidati slicni tom
+    # primeru i dalje dobijaju dodatnu kaznu kroz ``rejected_pairs``.
+    blocked_splits_by_phrase = {}
+    for (melid_key, phrase_value_key, split_key), label in manual_labels.items():
+        if label != "NE":
+            continue
+        try:
+            split = int(split_key)
+        except ValueError:
+            continue
+        blocked_splits_by_phrase.setdefault(
+            (str(melid_key), str(phrase_value_key)), set()
+        ).add(split)
     found_pairs = []
     candidate_scores = {}
     summaries = []
@@ -470,6 +491,9 @@ def search_wjd_phrases(
                         alpha=alpha,
                         accepted_pairs=accepted_pairs,
                         rejected_pairs=rejected_pairs,
+                        blocked_splits=blocked_splits_by_phrase.get(
+                            (str(melid), str(phrase_value)), set()
+                        ),
                     )
                 except Exception as error:
                     print(f"  [GRESKA] Fraza {phrase_value}: {error}; preskacem.")
@@ -529,8 +553,12 @@ def search_wjd_phrases(
                 print(f"       CALL:     {call_pitches}")
                 print(f"       RESPONSE: {response_pitches}")
 
-            # Drugi jednostavan prolaz: spoji svake dve susedne WJD fraze.
-            for pair_index in range(len(sections) - 1):
+            # Ovaj istorijski prolaz postoji samo da se ranije verzije mogu
+            # reprodukovati. Novi kandidati se standardno ne prave preko
+            # granice dve fraze.
+            for pair_index in (
+                range(len(sections) - 1) if ENABLE_CROSS_PHRASE_SEARCH else ()
+            ):
                 first_start, first_end, first_value = sections[pair_index]
                 second_start, second_end, second_value = sections[pair_index + 1]
                 if (
@@ -631,7 +659,7 @@ def search_wjd_phrases(
     finally:
         conn.close()
 
-    # Sacuvaj sve stare redove i oznake, ukljucujuci nepregledane kandidate.
+    # Sacuvaj ocenjene redove; nepregledane zameni rezultatima ovog pokretanja.
     def identity(row):
         def pitches(value):
             return tuple(json.loads(value) if isinstance(value, str) else value)
@@ -639,7 +667,10 @@ def search_wjd_phrases(
                 str(row["split_point_local"]), pitches(row["call_pitches"]),
                 pitches(row["response_pitches"]))
 
-    merged = {identity(row): dict(row) for row in previous_rows}
+    merged = {
+        identity(row): dict(row) for row in previous_rows
+        if row.get("validnost", "").strip()
+    }
     for result in found_pairs:
         key = identity(result)
         if key in merged:
@@ -654,11 +685,19 @@ def search_wjd_phrases(
         result["automatski_status"] = "ODBIJEN" if result.get("validnost") == "NE" else "CR"
         merged[key] = result
     results_to_write = list(merged.values())
+    results_to_write.sort(key=lambda row: bool(row.get("validnost", "").strip()))
     _export_result_midis(db_path, results_to_write)
     columns = list(dict.fromkeys(key for row in results_to_write for key in row))
     if not columns:
         columns = ["validnost", "melid", "phrase_value", "score", "call_pitches", "response_pitches"]
     output_csv.parent.mkdir(parents=True, exist_ok=True)
+    # Ne pregazi DA/NE koje korisnica sacuva dok detekcija jos radi.
+    current_csv_bytes = output_csv.read_bytes() if output_csv.exists() else None
+    if current_csv_bytes != original_csv_bytes:
+        raise RuntimeError(
+            "CSV je promenjen tokom pretrage. Tvoje oznake su sacuvane; "
+            "rezultati nisu upisani. Pokreni ponovo nakon cuvanja tabele."
+        )
     with output_csv.open("w", encoding="utf-8-sig", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=columns)
         writer.writeheader()
@@ -668,6 +707,8 @@ def search_wjd_phrases(
                 if isinstance(row[name], list):
                     row[name] = json.dumps(row[name])
             writer.writerow(row)
+
+    _remove_obsolete_unreviewed_midis(previous_rows, results_to_write)
 
     print("\n================ SUMARNI IZVESTAJ ================")
     if not summaries:
@@ -688,6 +729,31 @@ def search_wjd_phrases(
     print(f"CSV sacuvan u: {output_csv}")
 
     return found_pairs, summaries
+
+
+def _remove_obsolete_unreviewed_midis(previous_rows, current_rows):
+    """Brisi samo stare nepregledane MIDI fajlove koje vise nijedan red ne koristi."""
+    folder = EXCERPT_DIR.resolve()
+    kept = {
+        Path(row["excerpt_midi"]).resolve()
+        for row in current_rows if row.get("excerpt_midi")
+    }
+    # Ocenjeni fajlovi su zasticeni cak i kada se putanja ponavlja u CSV-u.
+    kept.update(
+        Path(row["excerpt_midi"]).resolve()
+        for row in previous_rows
+        if row.get("validnost", "").strip() and row.get("excerpt_midi")
+    )
+    for row in previous_rows:
+        if row.get("validnost", "").strip() or not row.get("excerpt_midi"):
+            continue
+        path = Path(row["excerpt_midi"]).resolve()
+        if path in kept or path.parent != folder or path.suffix.lower() != ".mid":
+            continue
+        try:
+            path.unlink(missing_ok=True)
+        except OSError as error:
+            print(f"[UPOZORENJE] Stari nepregledani MIDI nije obrisan: {path}: {error}")
 
 
 if __name__ == "__main__":
