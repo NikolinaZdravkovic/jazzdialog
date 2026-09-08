@@ -34,7 +34,7 @@ except ImportError:  # Kada se pokrene direktno iz komandne linije
 # Stavke mogu biti nazivi pesama ili melid brojevi.
 # ---------------------------------------------------------------------------
 SEARCH_ITEMS = [
-    6,7,8,9,10
+    11,12,13,14,15
 ]
 
 ALPHA = 0.8
