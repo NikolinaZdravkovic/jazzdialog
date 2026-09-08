@@ -38,7 +38,9 @@ SEARCH_ITEMS = [
 
 ALPHA = 0.8
 INCIPIT_K = 3
-THRESHOLD = 0.4
+# Konzervativni prag iz trenutnog rucno oznacenog skupa: manje kandidata,
+# ali znatno veca preciznost za rucni pregled.
+THRESHOLD = 0.2
 MIN_SEGMENT_LEN = 5
 # Ogranicenja se primenjuju pre skora, pa DA nagrada ne moze da ih zaobidje.
 MIN_SEGMENT_SOUND_SECONDS = 1.0
