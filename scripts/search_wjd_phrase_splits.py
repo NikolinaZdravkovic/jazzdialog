@@ -1,5 +1,6 @@
 """Primeni postojecu internu podelu na sve zvanicne WJD fraze vise sola."""
 
+import argparse
 import csv
 import json
 import re
@@ -16,7 +17,6 @@ try:  # Kada se uvozi kao scripts.search_wjd_phrase_splits
     )
     from .find_internal_split import (
         _dtw_norm,
-        find_best_internal_split,
         incipit_similarity,
     )
 except ImportError:  # Kada se pokrene direktno iz komandne linije
@@ -26,7 +26,7 @@ except ImportError:  # Kada se pokrene direktno iz komandne linije
         get_melody_events,
         get_phrase_sections,
     )
-    from find_internal_split import _dtw_norm, find_best_internal_split, incipit_similarity
+    from find_internal_split import _dtw_norm, incipit_similarity
 
 
 # ---------------------------------------------------------------------------
@@ -34,13 +34,12 @@ except ImportError:  # Kada se pokrene direktno iz komandne linije
 # Stavke mogu biti nazivi pesama ili melid brojevi.
 # ---------------------------------------------------------------------------
 SEARCH_ITEMS = [
-    11,12,13,14,15
+    31,32,33,34,35
 ]
 
 ALPHA = 0.8
 INCIPIT_K = 3
-# Konzervativni prag iz trenutnog rucno oznacenog skupa: manje kandidata,
-# ali znatno veca preciznost za rucni pregled.
+# Konzervativni radni prag. Preciznost na novim pesmama tek treba izmeriti.
 THRESHOLD = 0.2
 MIN_SEGMENT_LEN = 5
 # Ogranicenja se primenjuju pre skora, pa DA nagrada ne moze da ih zaobidje.
@@ -50,6 +49,9 @@ MAX_RESPONSE_CALL_RATIO = 2.0
 # Mentorka je trazila stabilnu pretragu samo unutar jedne zvanicne WJD fraze.
 # Stari, vec rucno ocenjeni redovi preko granice ostaju u CSV-u kao istorija.
 ENABLE_CROSS_PHRASE_SEARCH = False
+# Lokalna korekcija granice, ne segmentacija cele fraze po pauzama.
+BOUNDARY_MIN_GAP_SECONDS = 0.15
+BOUNDARY_MIN_GAIN_SECONDS = 0.05
 # Rucno odbijen kandidat dobija najvise ovoliku dodatnu kaznu.
 # Skor je distanca, zato veci skor znaci manju verovatnocu izbora.
 NEGATIVE_PENALTY_WEIGHT = 0.20
@@ -275,6 +277,11 @@ def _read_manual_feedback(output_csv):
             phrase_len = int(row["phrase_end_index_inclusive"]) - int(row["phrase_start_index"]) + 1
             if call_start == 0 and response_end == phrase_len:
                 labels[key] = label
+                # Ispravljena granica nije negativan muzicki primer. Blokiraj
+                # samo stari split, bez dodavanja tog para u rejected_pairs.
+                original_split = row.get("manual_original_split", "").strip()
+                if original_split and original_split != str(row["split_point_local"]):
+                    labels[_candidate_key(row["melid"], row["phrase_value"], original_split)] = "NE"
             row["validnost"] = label
             row["call_pitches"] = json.loads(row["call_pitches"])
             row["response_pitches"] = json.loads(row["response_pitches"])
@@ -374,6 +381,47 @@ def _score_split_with_tempo(
     return alpha * global_score + (1 - alpha) * incipit_score
 
 
+def _eligible_splits(durations, min_segment_len=MIN_SEGMENT_LEN):
+    """Jeftina provera pre DTW; razlog je prvi uslov koji odbaci celu frazu."""
+    n = len(durations)
+    if n < 2 * min_segment_len:
+        return [], "premalo_nota"
+    splits = [s for s in range(min_segment_len, n - min_segment_len + 1)
+              if MIN_RESPONSE_CALL_RATIO <= (n - s) / s <= MAX_RESPONSE_CALL_RATIO]
+    if not splits:
+        return [], "odnos_duzina"
+    splits = [s for s in splits
+              if min(sum(durations[:s]), sum(durations[s:])) >= MIN_SEGMENT_SOUND_SECONDS]
+    return (splits, "podobna") if splits else ([], "kratko_trajanje")
+
+
+def audit_phrases(search_items, db_path=DB_PATH):
+    """Pregled ulaza bez scoringa i bez promene CSV-a ili MIDI fajlova."""
+    reports = []
+    conn = connect_db(db_path)
+    try:
+        for item in search_items:
+            solo = _resolve_solo(conn, item)
+            if solo is None:
+                continue
+            melid, title, performer, _tempo = solo
+            events = get_melody_events(conn, melid)
+            sections = get_phrase_sections(conn, melid)
+            counts = dict(premalo_nota=0, odnos_duzina=0, kratko_trajanje=0,
+                          podobna=0, lose_granice=0)
+            for start, end, _value in sections:
+                if not 0 <= start <= end < len(events):
+                    counts["lose_granice"] += 1
+                    continue
+                _, reason = _eligible_splits([e[3] for e in events[start:end + 1]])
+                counts[reason] += 1
+            reports.append(dict(melid=melid, title=title, performer=performer,
+                                total=len(sections), **counts))
+    finally:
+        conn.close()
+    return reports
+
+
 def _find_best_scored_split(
     phrase_pitches,
     phrase_durations,
@@ -387,21 +435,16 @@ def _find_best_scored_split(
     blocked_splits=None,
 ):
     """Izaberi najbolju podelu jedne ili dve spojene WJD fraze."""
-    _split, _score, all_splits = find_best_internal_split(
-        phrase_pitches,
-        use_intervals=False,
-        min_segment_len=min_segment_len,
-        incipit_k=incipit_k,
-        alpha=alpha,
-    )
+    # Ne racunaj DTW dvaput; odbaci nedozvoljene podele pre scoringa.
+    splits, _reason = _eligible_splits(phrase_durations, min_segment_len)
     if allowed_splits is not None:
         allowed_splits = set(allowed_splits)
-        all_splits = [item for item in all_splits if item[0] in allowed_splits]
+        splits = [s for s in splits if s in allowed_splits]
     if blocked_splits:
-        all_splits = [item for item in all_splits if item[0] not in blocked_splits]
+        splits = [s for s in splits if s not in blocked_splits]
 
     base_scores = []
-    for split, _original_base_score in all_splits:
+    for split in splits:
         call = phrase_pitches[:split]
         response = phrase_pitches[split:]
         ratio = len(response) / len(call)
@@ -436,6 +479,50 @@ def _find_best_scored_split(
     return best, scores_by_split
 
 
+def _refine_boundary(best, events, pitches, durations, tempo, min_length,
+                     incipit_k, alpha, accepted, rejected, blocked, protected,
+                     threshold):
+    """Predlozi susedni predah; automatski pomeri samo dozvoljen kandidat.
+
+    Note su u lokalnom redosledu fraze. Pauza se meri od kraja svih
+    prethodnih nota, pa preklopljene note ne stvaraju laznu tisinu.
+    """
+    split = best[0]
+    def gap(point):
+        return max(0.0, events[point][1] - max(e[1] + e[3] for e in events[:point]))
+
+    old_gap = gap(split)
+    details = dict(boundary_original_split=split, boundary_original_score=best[4],
+                   boundary_gap_seconds=old_gap, boundary_suggested_split=split,
+                   boundary_suggested_gap_seconds=old_gap,
+                   boundary_status="unchanged")
+    if split in protected:
+        details["boundary_status"] = "manual_preserved"
+        return best, details
+    neighbors = [s for s in (split - 1, split + 1)
+                 if min_length <= s <= len(pitches) - min_length
+                 and s not in blocked and s not in protected]
+    if not neighbors:
+        return best, details
+    proposed = max(neighbors, key=gap)
+    new_gap = gap(proposed)
+    if new_gap < BOUNDARY_MIN_GAP_SECONDS or new_gap - old_gap < BOUNDARY_MIN_GAIN_SECONDS:
+        return best, details
+    details.update(boundary_suggested_split=proposed,
+                   boundary_suggested_gap_seconds=new_gap)
+    alternative, _ = _find_best_scored_split(
+        pitches, durations, tempo, min_length, incipit_k, alpha,
+        accepted, rejected, allowed_splits=[proposed], blocked_splits=blocked)
+    if alternative is None:
+        details["boundary_status"] = "review_length_or_duration"
+    elif alternative[4] >= threshold:
+        details["boundary_status"] = "review_score"
+    else:
+        details.update(boundary_status="shifted_to_breath", boundary_gap_seconds=new_gap)
+        return alternative, details
+    return best, details
+
+
 def search_wjd_phrases(
     search_items,
     db_path=DB_PATH,
@@ -444,11 +531,14 @@ def search_wjd_phrases(
     incipit_k=INCIPIT_K,
     threshold=THRESHOLD,
     min_segment_len=MIN_SEGMENT_LEN,
+    write_outputs=True,
 ):
     """Obradi trazene soloe i vrati ``(found_pairs, summaries)``.
 
     Za svaku zvanicnu frazu bira se samo najbolja podela cele fraze.
     Rezultat se prihvata samo kada je ``score < threshold``.
+    Zatim se proverava predah na susednim granicama. ``write_outputs=False``
+    izvrsava istu detekciju bez pisanja ili brisanja CSV/MIDI fajlova.
     """
     db_path = Path(db_path)
     output_csv = Path(output_csv)
@@ -515,6 +605,10 @@ def search_wjd_phrases(
             found_for_song = 0
             skipped_short = 0
             failed_phrases = 0
+            rejection_counts = dict(premalo_nota=0, odnos_duzina=0,
+                                    kratko_trajanje=0, rucno_odbijene_podele=0,
+                                    iznad_praga=0)
+            lowest_score = None
 
             print(f"\n=== {title} — {performer} (melid={melid}) ===")
             print(f"Ukupno nota: {len(pitches)}; zvanicnih fraza: {len(sections)}")
@@ -533,6 +627,7 @@ def search_wjd_phrases(
                         f"potrebno je najmanje {2 * min_segment_len}."
                     )
                     skipped_short += 1
+                    rejection_counts["premalo_nota"] += 1
                     continue
 
                 try:
@@ -564,12 +659,28 @@ def search_wjd_phrases(
                     )
 
                 if best is None:
-                    print(f"  [PRESKOCENA] Fraza {phrase_value}: nema dozvoljene podele.")
+                    _, reason = _eligible_splits(phrase_durations, min_segment_len)
+                    if reason == "podobna":
+                        reason = "rucno_odbijene_podele"
+                    rejection_counts[reason] += 1
+                    print(f"  [PRESKOCENA] Fraza {phrase_value}: {reason}.")
                     skipped_short += 1
                     continue
                 best_split, best_base_score, best_penalty, best_reward, best_score = best
+                lowest_score = best_score if lowest_score is None else min(lowest_score, best_score)
                 if best_score >= threshold:
+                    rejection_counts["iznad_praga"] += 1
                     continue
+
+                protected = {int(k[2]) for k, label in manual_labels.items()
+                             if k[:2] == (str(melid), str(phrase_value)) and label == "DA"}
+                best, boundary_details = _refine_boundary(
+                    best, events[start:end + 1], phrase_pitches, phrase_durations,
+                    avgtempo, min_segment_len, incipit_k, alpha,
+                    accepted_pairs, rejected_pairs,
+                    blocked_splits_by_phrase.get((str(melid), str(phrase_value)), set()),
+                    protected, threshold)
+                best_split, best_base_score, best_penalty, best_reward, best_score = best
 
                 split = best_split
                 score = best_score
@@ -600,6 +711,7 @@ def search_wjd_phrases(
                     "response_pitches": response_pitches,
                     "excerpt_midi": "",
                 }
+                result.update(boundary_details)
                 result.update(
                     _candidate_diagnostics(
                         call_pitches,
@@ -719,6 +831,9 @@ def search_wjd_phrases(
                     f"split={split}, score={score:.4f}"
                 )
 
+            print(f"  Razlozi odbacivanja: {rejection_counts}")
+            if lowest_score is not None:
+                print(f"  Najnizi prilagodjeni skor: {lowest_score:.4f}; prag: {threshold}")
             summaries.append({
                 "title": title,
                 "performer": performer,
@@ -727,9 +842,15 @@ def search_wjd_phrases(
                 "found_count": found_for_song,
                 "skipped_short": skipped_short,
                 "failed_phrases": failed_phrases,
+                "rejection_counts": rejection_counts,
+                "lowest_score": lowest_score,
             })
     finally:
         conn.close()
+
+    if not write_outputs:
+        # Pravi dry run: nema CSV/MIDI upisa niti ciscenja starih fajlova.
+        return found_pairs, summaries
 
     # Sacuvaj ocenjene redove; nepregledane zameni rezultatima ovog pokretanja.
     def identity(row):
@@ -752,8 +873,8 @@ def search_wjd_phrases(
         result["call_start_solo"] = result["phrase_start_index"]
         result["response_end_solo_inclusive"] = result["phrase_end_index_inclusive"]
         result["response_end_seconds"] = result["phrase_end_seconds"]
-        result["candidate_source"] = "verzija_7bd878a"
-        result["decision_reason"] = "istorijski_DTW_incipit_i_feedback"
+        result["candidate_source"] = "dtw_incipit_boundary_v1"
+        result["decision_reason"] = result.get("boundary_status", "dtw_incipit_feedback")
         result["automatski_status"] = "ODBIJEN" if result.get("validnost") == "NE" else "CR"
         merged[key] = result
     results_to_write = list(merged.values())
@@ -838,4 +959,18 @@ def _remove_obsolete_unreviewed_midis(previous_rows, current_rows):
 
 
 if __name__ == "__main__":
-    search_wjd_phrases(SEARCH_ITEMS)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--audit", action="store_true", help="Pregled duzina bez upisa rezultata")
+    parser.add_argument("--dry-run", action="store_true", help="Detekcija bez CSV/MIDI upisa ili brisanja")
+    parser.add_argument("--melids", nargs="+", type=int, help="Melid brojevi umesto SEARCH_ITEMS")
+    args = parser.parse_args()
+    items = args.melids if args.melids is not None else SEARCH_ITEMS
+    if args.audit:
+        for row in audit_phrases(items):
+            print(f"{row['melid']}: {row['title']} ({row['performer']}) | "
+                  f"podobno {row['podobna']}/{row['total']}, "
+                  f"premalo nota {row['premalo_nota']}, kratko trajanje {row['kratko_trajanje']}, "
+                  f"odnos duzina {row['odnos_duzina']}, lose granice {row['lose_granice']}")
+        print("Podobna fraza zadovoljava ogranicenja duzine; to nije potvrda call-response veze.")
+    else:
+        search_wjd_phrases(items, write_outputs=not args.dry_run)

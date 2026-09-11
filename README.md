@@ -12,7 +12,13 @@ Rezultati se čuvaju u `output/wjd_phrase_call_response.csv`. Svaki kandidat se 
 
 Pri svakom pokretanju za svaki red iz CSV-a automatski se generiše MIDI isečak u `output/wjd_phrase_excerpts`. Isečak sadrži samo pronađeni call i response sa originalnim ritmom, a kolona `excerpt_midi` čuva njegovu tačnu putanju.
 
-Svi raniji CSV redovi i ručne oznake ostaju sačuvani. Ako se CSV promeni tokom pretrage, skripta ga neće prepisati.
+Raniji ocenjeni CSV redovi i ručne oznake ostaju sačuvani. Nepregledani kandidati zamenjuju se rezultatima novog pokretanja. Ako se CSV promeni tokom pretrage, skripta ga neće prepisati.
+
+Posle izbora kandidata proverava se pauza jednu notu levo/desno od granice. Susedna pauza mora trajati najmanje 0.15 s i biti bar 0.05 s duža od trenutne. Podela se pomera samo ako nova podela zadovoljava postojeće uslove dužine, trajanja i skora. Ovo su eksperimentalni parametri, ne validirana muzička pravila.
+
+Kolone `boundary_original_split` i `boundary_original_score` čuvaju prvobitni rezultat. `boundary_suggested_split` i `boundary_suggested_gap_seconds` prikazuju predlog, a `boundary_status` objašnjava odluku: `shifted_to_breath` znači da je granica pomerena; `review_length_or_duration` ili `review_score` znače da je samo predložena za ručni pregled. U tom slučaju MIDI i pitch nizovi ostaju na stvarnoj granici `split_point_local`. Ručno potvrđene granice se ne pomeraju. Ispravka sa `manual_original_split` blokira staru podelu, ali je ne koristi kao negativan muzički primer.
+
+Za probu bez upisa ili brisanja fajlova, funkcija `search_wjd_phrases` prihvata `write_outputs=False`.
 
 ## Pokretanje
 
@@ -23,6 +29,14 @@ U `SEARCH_ITEMS` unutar `scripts/search_wjd_phrase_splits.py` upiši željene WJ
 ```
 
 Potrebni paketi su `dtaidistance` i `pretty_midi`. Datoteka `wjazzd.db` čuva se lokalno u folderu `data_midi` i nije uključena u repozitorijum.
+
+Pre detekcije možeš proveriti koliko fraza u grupi ima dovoljno nota i trajanja:
+
+```powershell
+.\venv\Scripts\python.exe scripts\search_wjd_phrase_splits.py --audit
+```
+
+Opcija `--melids 26 27 28` bira pesme bez menjanja `SEARCH_ITEMS`. Opcija `--dry-run` pokreće detekciju bez upisa ili brisanja CSV/MIDI fajlova. Svako pokretanje prikazuje razloge odbacivanja i najmanji prilagođeni skor po pesmi. „Podobna” znači samo da fraza zadovoljava ograničenja dužine, a ne da je muzički validan CR. Nula rezultata zato nije dokaz da u solu nema CR parova, posebno onih koji prelaze granice WJD fraza.
 
 ## Evaluacija ručnih oznaka
 
