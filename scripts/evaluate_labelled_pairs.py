@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import math
+import sqlite3
 import statistics
 from pathlib import Path
 
@@ -199,7 +200,38 @@ def _training_threshold(items, metric):
     return best[1] if best is not None else -math.inf
 
 
-def research(input_csv=INPUT_CSV):
+def _rhythm_distance(row, call, response, events):
+    """Map declared indices exactly; never locate a repeated motif by guessing."""
+    start = int(row["phrase_start_index"])
+    end = int(row["phrase_end_index_inclusive"])
+    split = int(row["split_point_local"])
+    left = int(row.get("call_start_local") or 0)
+    right = int(row.get("response_end_local_exclusive") or (end - start + 1))
+    if not (0 <= start <= end < len(events) and 0 <= left < split < right <= end-start+1):
+        raise ValueError("invalid_bounds")
+    for field, expected in (("split_point_solo", start+split),
+                            ("call_start_solo", start+left),
+                            ("response_end_solo_inclusive", start+right-1)):
+        if row.get(field) and int(row[field]) != expected:
+            raise ValueError("inconsistent_" + field)
+    first, second = events[start+left:start+split], events[start+split:start+right]
+    if [round(e[1]) for e in first] != call or [round(e[1]) for e in second] != response:
+        raise ValueError("pitch_or_length_mismatch")
+    for field, expected in (("call_start_seconds", first[0][0]),
+                            ("response_start_seconds", second[0][0])):
+        if row.get(field) and not math.isclose(float(row[field]), expected, abs_tol=1e-5, rel_tol=0):
+            raise ValueError("inconsistent_" + field)
+    def representation(notes):
+        iois = [b[0]-a[0] for a,b in zip(notes, notes[1:])]
+        if len(iois) < 2 or any(not math.isfinite(x) or x <= 0 for x in iois):
+            raise ValueError("insufficient_or_nonpositive_ioi")
+        median = statistics.median(iois)
+        return [math.log2(x/median) for x in iois]
+    distance, paths = dtw.warping_paths(representation(first), representation(second))
+    return float(distance/math.sqrt(len(dtw.best_path(paths))))
+
+
+def research(input_csv=INPUT_CSV, rhythm=False):
     """Read-only experiment. Grouped validation concerns labelled candidates,
     not end-to-end recall across all phrases or unseen call-response pairs.
     """
@@ -220,22 +252,49 @@ def research(input_csv=INPUT_CSV):
         if key in unique and unique[key]["label"] != label:
             conflicts.add(key)
         unique[key] = dict(row=row, label=label, call=call, response=response)
+    events_by_solo = {}
+    if rhythm:
+        database = PROJECT_ROOT / "data_midi" / "wjazzd.db"
+        conn = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True)
+        try:
+            ids = sorted({int(k[0]) for k in unique})
+            placeholders = ",".join("?" for _ in ids)
+            for melid, onset, pitch in conn.execute(
+                    f"SELECT melid,onset,pitch FROM melody WHERE melid IN ({placeholders}) ORDER BY melid,eventid", ids):
+                events_by_solo.setdefault(melid, []).append((onset, pitch))
+        finally:
+            conn.close()
     items = []
+    excluded = []
     for key, entry in unique.items():
         if key in conflicts or min(len(entry["call"]), len(entry["response"])) < 2:
             continue
+        extra = {}
+        if rhythm:
+            try:
+                extra["rhythm_rms"] = _rhythm_distance(entry["row"], entry["call"],
+                    entry["response"], events_by_solo.get(int(key[0]), []))
+            except (ValueError, KeyError, IndexError, TypeError) as error:
+                excluded.append(dict(melid=key[0], phrase=key[1], split=key[2],
+                                     label=entry["label"], reason=str(error)))
+                continue
         items.append(dict(melid=key[0], phrase=key[1], label=entry["label"],
-                          **_research_distances(entry["call"], entry["response"])))
+                          **_research_distances(entry["call"], entry["response"]), **extra))
     groups = sorted({x["melid"] for x in items}, key=int)
     positives = sum(x["label"] == "DA" for x in items)
     print(json.dumps(dict(csv_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
                          labelled_rows=labelled_count, unique_keys=len(unique),
                          conflicts_excluded=len(conflicts), analysed=len(items),
                          DA=positives, NE=len(items)-positives, solos=len(groups))))
+    if rhythm:
+        print(json.dumps(dict(mapping_exclusions=excluded)))
     if not positives or positives == len(items) or len(groups) < 2:
         print("Insufficient classes/groups for evaluation.")
         return
-    for metric in ("pitch_legacy", "pitch_rms", "shape_rms", "shape_band_rms"):
+    metrics = ["pitch_legacy", "pitch_rms", "shape_rms", "shape_band_rms"]
+    if rhythm:
+        metrics.append("rhythm_rms")
+    for metric in metrics:
         tp = fp = abstained = 0
         for group in groups:
             train = [x for x in items if x["melid"] != group]
@@ -256,5 +315,6 @@ def research(input_csv=INPUT_CSV):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--research", action="store_true", help="Compare DTW normalization with solo-held-out thresholds")
+    parser.add_argument("--rhythm", action="store_true", help="Research rhythm and melody on exactly mapped WJD candidates")
     args = parser.parse_args()
-    research() if args.research else main()
+    research(rhythm=args.rhythm) if args.research or args.rhythm else main()

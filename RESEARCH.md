@@ -94,6 +94,32 @@ Skripta čita oznake, računa nove vrednosti od pitch nizova i prikazuje rezulta
 
 Naredni ograničen eksperiment je ritam na istom skupu, samo za redove čije note i granice možemo tačno povezati sa bazom. Njegove rezultate treba porediti sa istim grupisanim postupkom i navesti koliko redova je ostalo dostupno. Tek ako donese koristan signal, razmatra se jedna jednostavna kombinacija sa melodijskim skorom. Novi DA i automatska promena produkcije nisu deo tog eksperimenta.
 
+## Završen ritmički eksperiment
+
+Ritmički eksperiment je završen 12. septembra 2026. po lokalnom vremenu. Sledeći rezultati zamenjuju raniju napomenu da ritam još nije testiran. Korišćen je isti SHA-256 CSV-a naveden na početku, sa 65 ocenjenih redova, 18 DA i 47 NE iz 22 sola.
+
+Svih 65 kandidata uspešno je povezano sa WJD notama: proverene su granice, dužine, pitch nizovi, a gde postoje i apsolutni indeksi i vremena početaka. Nije bilo odbačenih redova. Nedostajuće lokalne granice tumače se kao cela deklarisana fraza samo kada se oba pitch niza tačno poklapaju. Kod ne traži sličnu pojavu motiva na drugom mestu. Baza je otvorena u read-only režimu.
+
+Za svaki segment računati su pozitivni razmaci između početaka susednih nota (IOI). Svaki niz podeljen je sopstvenim medijanom, pa transformisan funkcijom log2. Standardni DTW zatim poravnava te nizove, a rezultat je RMS na odabranoj putanji. Tako dva ritma koja se razlikuju samo po ravnomernom ubrzanju imaju isti prikaz. Test ne uključuje trajanje završne note, artikulaciju niti položaj u taktu. Pauza između call-a i response-a nije deo unutrašnjih IOI nizova.
+
+| Mera na istih 65 kandidata | AUC, niže je bolje | DA medijan | NE medijan | Izdvojeni DA/NE predlozi |
+|---|---:|---:|---:|---:|
+| Relativni ritam RMS | 0,501 | 0,560 | 0,566 | 0 / 0 |
+| Pitch RMS | 0,567 | 1,785 | 1,900 | 0 / 0 |
+| Oblik RMS sa trakom | 0,603 | 2,545 | 2,358 | 1 / 2 |
+
+Sve četiri melodijske mere ponovo su izračunate na istom dostupnom skupu i dale su iste rezultate kao u prvoj tabeli. Za ritam nijedna od 22 trening podele nije dala prag sa najmanje tri predloga i najmanje 80% preciznosti. Metoda je zato svuda odustala; preciznost predloga nije definisana. AUC od 0,501 pokazuje da ova konkretna mera u ovom uzorku praktično ne razdvaja DA od NE. To nije dokaz da ritam uopšte nije važan, niti test svih ritmičkih reprezentacija.
+
+Kontrolnim primerima provereni su isti relativni ritam pri dvostruko sporijem izvođenju, odbacivanje nepodudarnih indeksa, pitch nizova i početnih vremena, kao i odbacivanje nultog IOI-ja. CSV, MIDI fajlovi, produkcijski scoring i prag nisu menjani.
+
+Ponovljivo pokretanje:
+
+```powershell
+.\venv\Scripts\python.exe scripts\evaluate_labelled_pairs.py --rhythm
+```
+
+Odluka: nema dovoljno dokaza da se ova ritmička mera doda produkcijskom skoru. Najkorisniji sledeći korak ostaje završavanje konačnih granica postojećih 18 DA redova, grupisanih u 15 oznaka fraza, i nezavisna provera malog definisanog uzorka sa mentorkom. Novi kriterijumi sada nemaju potvrđenu prednost nad tim radom. Automatski nastavak istraživanja završava se ovim jednim eksperimentom.
+
 ## Izvori
 
 1. scikit-learn, [Cross-validation: evaluating estimator performance](https://scikit-learn.org/stable/modules/cross_validation.html), odeljci o grupama i zavisnim uzorcima. Dokumentacija pristupljena tokom ove provere.
