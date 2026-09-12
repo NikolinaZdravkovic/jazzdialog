@@ -120,6 +120,14 @@ Ponovljivo pokretanje:
 
 Odluka: nema dovoljno dokaza da se ova ritmička mera doda produkcijskom skoru. Najkorisniji sledeći korak ostaje završavanje konačnih granica postojećih 18 DA redova, grupisanih u 15 oznaka fraza, i nezavisna provera malog definisanog uzorka sa mentorkom. Novi kriterijumi sada nemaju potvrđenu prednost nad tim radom. Automatski nastavak istraživanja završava se ovim jednim eksperimentom.
 
+## Pilot izvoz i ubrzanje pretrage
+
+Implementiran je `scripts/export_reviewed_dataset.py --export`. Izvoz trenutno sadrži 18 DA anotacija. Granice, note i vremena oba MIDI kanala provereni su prema WJD bazi. Šest anotacija čini tri preklapajuća para verzija: solo 14 (Avalon), solo 73 (I Fall in Love Too Easily), solo 74 (Just Friends). Verzije su zadržane sa oznakom preklapanja; konačne granice bira čovek. Manifest `output/reviewed_dataset.json` sadrži relativne putanje, originalni tajming, stabilne identifikatore i grupu po solu za evaluaciju.
+
+Pretraga DA/NE referenci ubrzana je tačnom donjom granicom. Ako distanca call-a sama ne može dati prosek manji od trenutno najboljeg čak ni uz savršen response, poređenje response-a nije potrebno. Ovo ne menja formulu, prag niti muzičke kriterijume.
+
+Na šest stvarnih kandidata broj poređenja segmenata pao je sa 780 na 218 uz iste rezultate. U kontrolnom izvršavanju cele pretrage sola 31 kandidati, skorovi, dijagnostika i sažetak bili su identični pre i posle izmene; vreme je bilo 44,797 s naspram 31,387 s. To je merenje jednog pokretanja na ovom računaru, a ne obećanje istog ubrzanja na svakom solu. Obe pretrage bile su bez upisa CSV/MIDI fajlova.
+
 ## Izvori
 
 1. scikit-learn, [Cross-validation: evaluating estimator performance](https://scikit-learn.org/stable/modules/cross_validation.html), odeljci o grupama i zavisnim uzorcima. Dokumentacija pristupljena tokom ove provere.

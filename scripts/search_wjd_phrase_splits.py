@@ -301,18 +301,31 @@ def _transposition_aware_distance(first, second):
     return min(absolute, _dtw_norm(first_shape, second_shape))
 
 
+def _nearest_reference_distance(call, response, references, limit):
+    """Exact clipped minimum; skip response only when it cannot improve it.
+
+    Distances are nonnegative. If call_distance >= 2*best, even a perfect
+    response cannot lower the pair mean below best. No score approximation.
+    """
+    best = limit
+    for reference_call, reference_response in references:
+        call_distance = _transposition_aware_distance(call, reference_call)
+        if call_distance >= 2 * best:
+            continue
+        response_distance = _transposition_aware_distance(response, reference_response)
+        best = min(best, (call_distance + response_distance) / 2)
+        if best == 0:
+            break
+    return best
+
+
 def _negative_example_penalty(call, response, rejected_pairs):
     """Kazni samo kandidata koji licI na vec rucno odbijen par."""
     if not rejected_pairs:
         return 0.0
 
-    nearest_distance = min(
-        (
-            _transposition_aware_distance(call, rejected_call)
-            + _transposition_aware_distance(response, rejected_response)
-        ) / 2
-        for rejected_call, rejected_response in rejected_pairs
-    )
+    nearest_distance = _nearest_reference_distance(
+        call, response, rejected_pairs, NEGATIVE_SIMILARITY_LIMIT)
     if nearest_distance >= NEGATIVE_SIMILARITY_LIMIT:
         return 0.0
     return NEGATIVE_PENALTY_WEIGHT * (
@@ -325,13 +338,8 @@ def _positive_example_reward(call, response, accepted_pairs):
     if not accepted_pairs:
         return 0.0
 
-    nearest_distance = min(
-        (
-            _transposition_aware_distance(call, accepted_call)
-            + _transposition_aware_distance(response, accepted_response)
-        ) / 2
-        for accepted_call, accepted_response in accepted_pairs
-    )
+    nearest_distance = _nearest_reference_distance(
+        call, response, accepted_pairs, POSITIVE_SIMILARITY_LIMIT)
     if nearest_distance >= POSITIVE_SIMILARITY_LIMIT:
         return 0.0
     return POSITIVE_REWARD_WEIGHT * (
