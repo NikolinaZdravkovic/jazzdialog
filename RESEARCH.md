@@ -122,7 +122,7 @@ Odluka: nema dovoljno dokaza da se ova ritmička mera doda produkcijskom skoru. 
 
 ## Pilot izvoz i ubrzanje pretrage
 
-Implementiran je `scripts/export_reviewed_dataset.py --export`. Izvoz trenutno sadrži 18 DA anotacija. Granice, note i vremena oba MIDI kanala provereni su prema WJD bazi. Šest anotacija čini tri preklapajuća para verzija: solo 14 (Avalon), solo 73 (I Fall in Love Too Easily), solo 74 (Just Friends). Verzije su zadržane sa oznakom preklapanja; konačne granice bira čovek. Manifest `output/reviewed_dataset.json` sadrži relativne putanje, originalni tajming, stabilne identifikatore i grupu po solu za evaluaciju.
+Implementiran je `scripts/export_reviewed_dataset.py --export`. Izvoz trenutno sadrži 18 DA anotacija. Granice, note i vremena oba MIDI kanala provereni su prema WJD bazi. Šest anotacija čini tri preklapajuća para verzija: solo 14 (Avalon), solo 73 (Long Ago and Far Away), solo 74 (There Will Never Be Another You). Verzije su zadržane sa oznakom preklapanja; konačne granice bira čovek. Manifest `output/reviewed_dataset.json` sadrži relativne putanje, originalni tajming, stabilne identifikatore i grupu po solu za evaluaciju. Nazivi za 73 i 74 ispravljeni su prema manifestu; raniji tekst ih je pogrešno imenovao.
 
 Pretraga DA/NE referenci ubrzana je tačnom donjom granicom. Ako distanca call-a sama ne može dati prosek manji od trenutno najboljeg čak ni uz savršen response, poređenje response-a nije potrebno. Ovo ne menja formulu, prag niti muzičke kriterijume.
 

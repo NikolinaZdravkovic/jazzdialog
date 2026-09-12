@@ -72,6 +72,22 @@ Komanda proverava podatke i pravi `output/reviewed_dataset.zip`, a osvežava i J
 
 JSON i kanonski ZIP sa MIDI-jima su u Git-u i lokalno u `output`; pojedinačni MIDI fajlovi ostaju na svojim mestima.
 
+Za pregled različitih granica potvrđenih primera pokreni:
+
+```powershell
+.\venv\Scripts\python.exe scripts\export_reviewed_dataset.py --review
+```
+
+Prikazuje naziv pesme, broj nota oba dela, vreme granice i MIDI putanju za preklapajuće verzije. Pregled koristi sačuvani paket, pa nove CSV ocene postaju vidljive nakon ponovnog `--package` izvoza.
+
+Provera paketa na drugom računaru, bez WJD baze i izvornog CSV-a:
+
+```powershell
+python scripts\export_reviewed_dataset.py --verify-package output\reviewed_dataset.zip
+```
+
+Potrebni su Python i `pretty_midi`. Provera čita sadržaj ZIP-a bez raspakivanja i proverava note, tajming, granice, grupe po solu i oznake preklapanja. Proverava usklađenost paketa, a ne muzičku ispravnost DA ocena.
+
 ## Izvor podataka
 
 Weimar Jazz Database je deo [Jazzomat Research Project](https://jazzomat.hfm-weimar.de/) i dostupna je pod Open Data Commons Open Database License (ODbL).

@@ -114,6 +114,82 @@ def build(source=SOURCE, database=DATABASE):
                 records=records)
 
 
+def validate_midi(record, payload):
+    """Validate MIDI bytes against manifest notes, without access to WJD."""
+    midi = pretty_midi.PrettyMIDI(io.BytesIO(payload))
+    origin = record['call']['notes'][0]['onset_seconds']
+    if len(midi.instruments) != 2:
+        raise ValueError('Expected exactly two MIDI tracks')
+    for role in ('call', 'response'):
+        tracks = [t for t in midi.instruments if t.name == role.upper()]
+        segment = record[role]
+        expected = segment['notes']
+        if not expected or segment['end_note_exclusive']-segment['start_note'] != len(expected):
+            raise ValueError('Manifest segment length mismatch')
+        if len(tracks) != 1 or len(tracks[0].notes) != len(expected):
+            raise ValueError('MIDI track/count mismatch')
+        for actual, note in zip(sorted(tracks[0].notes, key=lambda n:n.start), expected):
+            onset, duration = note['onset_seconds']-origin, note['duration_seconds']
+            if not all(math.isfinite(x) for x in (onset, duration, note['pitch'])) or duration <= 0:
+                raise ValueError('Invalid manifest note')
+            if actual.pitch != note['pitch'] or abs(actual.start-onset) > .005 or abs(actual.end-onset-duration) > .005:
+                raise ValueError('MIDI pitch/timing mismatch')
+
+
+def verify_package(source):
+    """Check an archive in place, without extracting or consulting local data."""
+    with zipfile.ZipFile(source) as archive:
+        names = archive.namelist()
+        if len(names) != len(set(names)) or archive.testzip() is not None:
+            raise ValueError('Duplicate ZIP members or bad checksum')
+        for name in names:
+            if PurePosixPath(name).is_absolute() or '..' in PurePosixPath(name).parts or '\\' in name or ':' in name:
+                raise ValueError('Unsafe archive path')
+        result = json.loads(archive.read('reviewed_dataset.json'))
+        records = result['records']
+        if result['schema_version'] != 1 or result['annotation_count'] != len(records):
+            raise ValueError('Manifest version/count mismatch')
+        if len({r['id'] for r in records}) != len(records):
+            raise ValueError('Duplicate annotation IDs')
+        expected_members = {'README.txt', 'reviewed_dataset.json'} | {r['midi'] for r in records}
+        if set(names) != expected_members:
+            raise ValueError('Missing or unexpected ZIP members')
+        for record in records:
+            left, split = record['call']['start_note'], record['response']['start_note']
+            right = record['response']['end_note_exclusive']
+            if not 0 <= left < split < right or record['call']['end_note_exclusive'] != split:
+                raise ValueError('Invalid segment boundaries')
+            if record['id'] != f"wjd:{record['melid']}:{left}:{split}:{right}" or record['label'] != 'DA':
+                raise ValueError('Invalid annotation identity/label')
+            if record['evaluation_group'] != f"wjd-solo:{record['melid']}":
+                raise ValueError('Invalid evaluation group')
+            overlaps = {other['id'] for other in records if other['id'] != record['id']
+                        and other['melid'] == record['melid']
+                        and max(left,other['call']['start_note']) < min(right,other['response']['end_note_exclusive'])}
+            if set(record['overlapping_ids']) != overlaps:
+                raise ValueError('Incorrect overlap metadata')
+            validate_midi(record, archive.read(record['midi']))
+        if result['annotations_needing_overlap_review'] != sum(bool(r['overlapping_ids']) for r in records):
+            raise ValueError('Incorrect overlap count')
+        return result
+
+
+def print_review(result):
+    """Show unresolved versions without making a musical choice."""
+    records = result['records']
+    print(f"DA annotations: {len(records)}; with overlapping versions: {result['annotations_needing_overlap_review']}")
+    for record in records:
+        if not record['overlapping_ids']:
+            continue
+        call, response = record['call']['notes'], record['response']['notes']
+        print(f"\n{record['title']} | melid {record['melid']}, phrase {record['phrase_value']} | {record['id']}")
+        print(f"CALL {len(call)} notes; RESPONSE {len(response)} notes; boundary {response[0]['onset_seconds']:.3f}s in solo")
+        print('MIDI:', record['midi'])
+        if record.get('manual_boundary_note'):
+            print('Manual note:', record['manual_boundary_note'])
+    print('\nOverlapping versions need human boundary review; no labels were changed.')
+
+
 def package_bytes(result):
     """Validate the exact bytes being packaged before replacing any output."""
     manifest = (json.dumps(result, ensure_ascii=False, indent=2)+'\n').encode('utf-8')
@@ -127,19 +203,7 @@ def package_bytes(result):
         path = (ROOT / name).resolve()
         path.relative_to(ROOT.resolve())
         payload = path.read_bytes()
-        midi = pretty_midi.PrettyMIDI(io.BytesIO(payload))
-        origin = record['call']['notes'][0]['onset_seconds']
-        if len(midi.instruments) != 2:
-            raise ValueError('Expected exactly two MIDI tracks: '+name)
-        for role in ('call', 'response'):
-            tracks = [t for t in midi.instruments if t.name == role.upper()]
-            expected = record[role]['notes']
-            if len(tracks) != 1 or len(tracks[0].notes) != len(expected):
-                raise ValueError('Packaged MIDI track/count mismatch: '+name)
-            for actual, note in zip(sorted(tracks[0].notes, key=lambda n:n.start), expected):
-                onset = note['onset_seconds']-origin
-                if actual.pitch != note['pitch'] or abs(actual.start-onset) > .005 or abs(actual.end-onset-note['duration_seconds']) > .005:
-                    raise ValueError('Packaged MIDI pitch/timing mismatch: '+name)
+        validate_midi(record, payload)
         members[name] = payload
     with zipfile.ZipFile(buffer, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr('reviewed_dataset.json', manifest)
@@ -160,6 +224,8 @@ def package_bytes(result):
             'Project: https://github.com/NikolinaZdravkovic/jazzdialog\n')
         for name, payload in members.items():
             archive.writestr(name, payload)
+    buffer.seek(0)
+    verify_package(buffer)
     buffer.seek(0)
     with zipfile.ZipFile(buffer) as archive:
         if archive.testzip() is not None:
@@ -199,7 +265,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--export", action="store_true")
     parser.add_argument("--package", action="store_true", help="Export JSON and one validated portable ZIP with MIDI files")
+    parser.add_argument("--verify-package", type=Path, metavar="ZIP", help="Check ZIP without WJD, CSV or local MIDI")
+    parser.add_argument("--review", action="store_true", help="Show overlapping versions from the verified package")
     args = parser.parse_args()
+    if (args.verify_package or args.review) and (args.export or args.package):
+        parser.error('Review/verification cannot be combined with export')
+    if args.verify_package or args.review:
+        result = verify_package(args.verify_package or PACKAGE)
+        if args.review:
+            print_review(result)
+        else:
+            print(f"Package verified: {result['annotation_count']} annotations. WJD and CSV were not needed.")
+        raise SystemExit(0)
     result = build()
     print(f"Verified DA annotations: {result['annotation_count']}; overlapping annotations: {result['annotations_needing_overlap_review']}")
     for record in result['records']:
