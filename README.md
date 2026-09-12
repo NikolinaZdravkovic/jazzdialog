@@ -62,7 +62,15 @@ Rezultat je `output/reviewed_dataset.json`: početni dataset sa pitch vrednostim
 
 `overlapping_ids` označava preklapajuće verzije koje treba zajedno pregledati pre konačnog izdanja. One ostaju sačuvane, ali broj anotacija nije nužno broj nezavisnih parova. `evaluation_group` grupiše isti solo za odvajanje treninga i testa. Putanje MIDI fajlova su relativne prema korenu projekta. Originalni CSV ostaje mesto za tvoje DA/NE oznake; JSON je izvedeni snimak i treba ponovo izvesti nakon novih ocena.
 
-JSON je u Git-u; postojeći MIDI isečci ostaju lokalni kao i ranije. JSON sadrži note i tajming, ali nije ZIP paket sa MIDI fajlovima.
+Za prenosiv paket sa JSON-om, postojećim MIDI isečcima i kratkim uputstvom pokreni:
+
+```powershell
+.\venv\Scripts\python.exe scripts\export_reviewed_dataset.py --package
+```
+
+Komanda proverava podatke i pravi `output/reviewed_dataset.zip`, a osvežava i JSON. Raspakuj ZIP i otvori MIDI iz putanje navedene u manifestu; WJD baza nije potrebna za preslušavanje. Paket zadržava preklapajuće verzije kao pilot anotacije. Provera tačnih MIDI bajtova, nota, tajminga i putanja završava se pre zamene prethodnog izvoza; greška validacije ostavlja prethodni paket sačuvan. Izvorni CSV i WJD baza nisu u paketu.
+
+JSON i kanonski ZIP sa MIDI-jima su u Git-u i lokalno u `output`; pojedinačni MIDI fajlovi ostaju na svojim mestima.
 
 ## Izvor podataka
 

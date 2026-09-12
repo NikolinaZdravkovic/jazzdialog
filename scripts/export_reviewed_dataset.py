@@ -7,10 +7,12 @@ No labels, source rows or MIDI files are changed.
 import argparse
 import csv
 import hashlib
+import io
 import json
 import math
 import sqlite3
-from pathlib import Path
+import zipfile
+from pathlib import Path, PurePosixPath
 
 import pretty_midi
 
@@ -18,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "output" / "wjd_phrase_call_response.csv"
 DATABASE = ROOT / "data_midi" / "wjazzd.db"
 OUTPUT = ROOT / "output" / "reviewed_dataset.json"
+PACKAGE = ROOT / "output" / "reviewed_dataset.zip"
 
 
 def annotation(row, events):
@@ -111,18 +114,99 @@ def build(source=SOURCE, database=DATABASE):
                 records=records)
 
 
+def package_bytes(result):
+    """Validate the exact bytes being packaged before replacing any output."""
+    manifest = (json.dumps(result, ensure_ascii=False, indent=2)+'\n').encode('utf-8')
+    buffer = io.BytesIO()
+    members = {}
+    for record in result['records']:
+        name = record['midi']
+        relative = PurePosixPath(name)
+        if relative.is_absolute() or '..' in relative.parts or '\\' in name or ':' in name:
+            raise ValueError('Unsafe archive path: '+name)
+        path = (ROOT / name).resolve()
+        path.relative_to(ROOT.resolve())
+        payload = path.read_bytes()
+        midi = pretty_midi.PrettyMIDI(io.BytesIO(payload))
+        origin = record['call']['notes'][0]['onset_seconds']
+        if len(midi.instruments) != 2:
+            raise ValueError('Expected exactly two MIDI tracks: '+name)
+        for role in ('call', 'response'):
+            tracks = [t for t in midi.instruments if t.name == role.upper()]
+            expected = record[role]['notes']
+            if len(tracks) != 1 or len(tracks[0].notes) != len(expected):
+                raise ValueError('Packaged MIDI track/count mismatch: '+name)
+            for actual, note in zip(sorted(tracks[0].notes, key=lambda n:n.start), expected):
+                onset = note['onset_seconds']-origin
+                if actual.pitch != note['pitch'] or abs(actual.start-onset) > .005 or abs(actual.end-onset-note['duration_seconds']) > .005:
+                    raise ValueError('Packaged MIDI pitch/timing mismatch: '+name)
+        members[name] = payload
+    with zipfile.ZipFile(buffer, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr('reviewed_dataset.json', manifest)
+        archive.writestr('README.txt',
+            'JazzDialog pilot manual annotations\n\n'
+            'Open reviewed_dataset.json. MIDI paths are relative to this archive root.\n'
+            'Each MIDI contains CALL and RESPONSE tracks. MIDI time starts at call onset;\n'
+            'JSON note times are seconds from the solo origin. MIDI rounding tolerance: 5 ms.\n'
+            'DA labels are human judgments. Overlapping versions are retained and flagged;\n'
+            'annotation_count is not a count of independent final examples.\n'
+            'Use evaluation_group to keep the same solo out of both training and test.\n\n'
+            'Source: Weimar Jazz Database, Jazzomat Research Project\n'
+            'https://jazzomat.hfm-weimar.de/\n'
+            'WJD source database: Open Data Commons Open Database License (ODbL).\n'
+            'https://opendatacommons.org/licenses/odbl/1-0/\n'
+            'Source database and review CSV are not bundled. source_csv/source_sha256\n'
+            'identify provenance in the project, not another required archive member.\n'
+            'Project: https://github.com/NikolinaZdravkovic/jazzdialog\n')
+        for name, payload in members.items():
+            archive.writestr(name, payload)
+    buffer.seek(0)
+    with zipfile.ZipFile(buffer) as archive:
+        if archive.testzip() is not None:
+            raise ValueError('ZIP checksum validation failed')
+        if json.loads(archive.read('reviewed_dataset.json')) != result:
+            raise ValueError('ZIP manifest mismatch')
+        for name, payload in members.items():
+            if archive.read(name) != payload:
+                raise ValueError('ZIP MIDI bytes changed: '+name)
+    return manifest, buffer.getvalue()
+
+
+def export(result, package=False):
+    if package:
+        manifest, payload = package_bytes(result)
+    else:
+        manifest = (json.dumps(result, ensure_ascii=False, indent=2)+'\n').encode('utf-8')
+    if hashlib.sha256(SOURCE.read_bytes()).hexdigest() != result['source_sha256']:
+        raise ValueError('Source changed before export; rerun')
+    # All validation finishes before touching either previous valid output.
+    temporary = OUTPUT.with_suffix('.json.tmp')
+    zip_temporary = PACKAGE.with_suffix('.zip.tmp')
+    try:
+        temporary.write_bytes(manifest)
+        if package:
+            zip_temporary.write_bytes(payload)
+        temporary.replace(OUTPUT)
+        if package:
+            zip_temporary.replace(PACKAGE)
+    finally:
+        temporary.unlink(missing_ok=True)
+        if package:
+            zip_temporary.unlink(missing_ok=True)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--export", action="store_true")
+    parser.add_argument("--package", action="store_true", help="Export JSON and one validated portable ZIP with MIDI files")
     args = parser.parse_args()
     result = build()
     print(f"Verified DA annotations: {result['annotation_count']}; overlapping annotations: {result['annotations_needing_overlap_review']}")
     for record in result['records']:
         if record['overlapping_ids']:
             print(record['id'], 'overlaps', ', '.join(record['overlapping_ids']))
-    if args.export:
-        # Derived artifact only. Atomic replacement preserves last valid export.
-        temporary = OUTPUT.with_suffix('.json.tmp')
-        temporary.write_text(json.dumps(result, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
-        temporary.replace(OUTPUT)
+    if args.export or args.package:
+        export(result, package=args.package)
         print(OUTPUT)
+        if args.package:
+            print(PACKAGE)
