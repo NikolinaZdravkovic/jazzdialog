@@ -10,6 +10,7 @@ __pycache__/
 # Generisani rezultati; rucno anotirani CSV ostaje u Git-u
 /output/*
 !/output/wjd_phrase_call_response.csv
+!/output/reviewed_dataset.json
 
 # Lokalna podesavanja editora i operativnog sistema
 /.vscode/

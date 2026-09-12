@@ -50,6 +50,20 @@ Skripta samo čita CSV i poredi odvojeno DTW, intervalski motiv, oblik DTW puta 
 
 Za nove neproverene kandidate pretraga u CSV dodaje kolone `note_density`, `motif_run_fraction`, `dtw_diagonal_fraction` i `review_priority`. Kandidati sa manjim `review_priority` stoje prvi za ručni pregled; to je redosled pregleda, ne automatska oznaka `DA`.
 
+## Izvoz potvrđenog dataseta
+
+Za izvoz svih ručno označenih `DA` primera pokreni:
+
+```powershell
+.\venv\Scripts\python.exe scripts\export_reviewed_dataset.py --export
+```
+
+Rezultat je `output/reviewed_dataset.json`: početni dataset sa pitch vrednostima, originalnim vremenima i trajanjima nota, granicama call-a i response-a i putanjama do postojećih MIDI fajlova. Bez `--export` komanda samo proverava podatke. Provera poredi note i oba MIDI kanala sa bazom; greška sprečava novi izvoz.
+
+`overlapping_ids` označava preklapajuće verzije koje treba zajedno pregledati pre konačnog izdanja. One ostaju sačuvane, ali broj anotacija nije nužno broj nezavisnih parova. `evaluation_group` grupiše isti solo za odvajanje treninga i testa. Putanje MIDI fajlova su relativne prema korenu projekta. Originalni CSV ostaje mesto za tvoje DA/NE oznake; JSON je izvedeni snimak i treba ponovo izvesti nakon novih ocena.
+
+JSON je u Git-u; postojeći MIDI isečci ostaju lokalni kao i ranije. JSON sadrži note i tajming, ali nije ZIP paket sa MIDI fajlovima.
+
 ## Izvor podataka
 
 Weimar Jazz Database je deo [Jazzomat Research Project](https://jazzomat.hfm-weimar.de/) i dostupna je pod Open Data Commons Open Database License (ODbL).
