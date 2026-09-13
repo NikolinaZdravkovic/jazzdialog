@@ -231,7 +231,60 @@ def _rhythm_distance(row, call, response, events):
     return float(distance/math.sqrt(len(dtw.best_path(paths))))
 
 
-def research(input_csv=INPUT_CSV, rhythm=False):
+def _contour_pair_features(call, response):
+    """Small MIDI adaptation, NOT the audio melodiness model from Salamon 2012.
+
+    Describe differences of transposition-invariant mean, spread and net motion.
+    No pitch salience or vibrato can be reconstructed from MIDI note numbers.
+    """
+    first = [p-call[0] for p in call]
+    second = [p-response[0] for p in response]
+    return [abs(statistics.mean(first)-statistics.mean(second)),
+            abs(statistics.pstdev(first)-statistics.pstdev(second)),
+            abs(first[-1]-second[-1])]
+
+
+def _gaussian_score(train, query):
+    """Negative log posterior odds for DA; shared diagonal covariance.
+
+    Class means, variances and priors come from training solos only.
+    Fixed variance floor avoids division by zero; no hyperparameter search.
+    This is a small Gaussian baseline, not a calibrated confidence estimate.
+    """
+    da = [x for label,x in train if label=='DA']
+    ne = [x for label,x in train if label=='NE']
+    if len(da)<2 or len(ne)<2:
+        return math.inf
+    score = -math.log(len(da)/len(ne))
+    for i,value in enumerate(query):
+        a, b = statistics.mean(x[i] for x in da), statistics.mean(x[i] for x in ne)
+        variance = max(1e-6, (sum((x[i]-a)**2 for x in da)+sum((x[i]-b)**2 for x in ne))/(len(train)-2))
+        score += ((value-a)**2-(value-b)**2)/(2*variance)
+    return score
+
+
+def _evaluate_contour_model(items, with_rhythm=False):
+    values = []
+    predictions = []
+    for item in items:
+        def vector(row):
+            return row['contour_features'] + ([row['rhythm_rms']] if with_rhythm else [])
+        train = [(row['label'],vector(row)) for row in items if row['melid']!=item['melid']]
+        score = _gaussian_score(train,vector(item))
+        values.append((item['label'],score))
+        if score < 0:  # Fixed equal-error posterior decision; no tuned threshold.
+            predictions.append(dict(melid=item['melid'],phrase=item['phrase'],label=item['label']))
+    tp = sum(x['label']=='DA' for x in predictions)
+    fp = len(predictions)-tp
+    positives = sum(x['label']=='DA' for x in items)
+    print(json.dumps(dict(model='contour_plus_rhythm_gaussian' if with_rhythm else 'contour_gaussian',
+        decision='negative_log_odds < 0; training class priors',
+        heldout_auc_lower_better=_auc_when_lower_is_better(values),
+        heldout_TP=tp,heldout_FP=fp,precision=tp/(tp+fp) if tp+fp else None,
+        recall_of_labelled_DA=tp/positives,predictions=predictions)))
+
+
+def research(input_csv=INPUT_CSV, rhythm=False, contours=False):
     """Read-only experiment. Grouped validation concerns labelled candidates,
     not end-to-end recall across all phrases or unseen call-response pairs.
     """
@@ -279,6 +332,7 @@ def research(input_csv=INPUT_CSV, rhythm=False):
                                      label=entry["label"], reason=str(error)))
                 continue
         items.append(dict(melid=key[0], phrase=key[1], label=entry["label"],
+                          contour_features=_contour_pair_features(entry['call'],entry['response']),
                           **_research_distances(entry["call"], entry["response"]), **extra))
     groups = sorted({x["melid"] for x in items}, key=int)
     positives = sum(x["label"] == "DA" for x in items)
@@ -309,6 +363,10 @@ def research(input_csv=INPUT_CSV, rhythm=False):
             median_NE=statistics.median(x[metric] for x in items if x["label"]=="NE"),
             heldout_TP=tp, heldout_FP=fp, precision=tp/(tp+fp) if tp+fp else None,
             recall_of_labelled_DA=tp/positives, abstained_folds=abstained)))
+    if contours:
+        _evaluate_contour_model(items)
+        if rhythm:
+            _evaluate_contour_model(items,with_rhythm=True)
     print("Exploratory leave-one-solo-out evaluation; no production settings or labels changed.")
 
 
@@ -316,5 +374,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--research", action="store_true", help="Compare DTW normalization with solo-held-out thresholds")
     parser.add_argument("--rhythm", action="store_true", help="Research rhythm and melody on exactly mapped WJD candidates")
+    parser.add_argument("--contours", action="store_true", help="Test a learned contour baseline, alone and with rhythm; implies WJD mapping")
     args = parser.parse_args()
-    research(rhythm=args.rhythm) if args.research or args.rhythm else main()
+    research(rhythm=args.rhythm or args.contours, contours=args.contours) if args.research or args.rhythm or args.contours else main()

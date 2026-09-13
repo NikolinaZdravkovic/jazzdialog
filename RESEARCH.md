@@ -128,6 +128,33 @@ Pretraga DA/NE referenci ubrzana je tačnom donjom granicom. Ako distanca call-a
 
 Na šest stvarnih kandidata broj poređenja segmenata pao je sa 780 na 218 uz iste rezultate. U kontrolnom izvršavanju cele pretrage sola 31 kandidati, skorovi, dijagnostika i sažetak bili su identični pre i posle izmene; vreme je bilo 44,797 s naspram 31,387 s. To je merenje jednog pokretanja na ovom računaru, a ne obećanje istog ubrzanja na svakom solu. Obe pretrage bile su bez upisa CSV/MIDI fajlova.
 
+## Predlog mentorke: statistički opis kontura
+
+Salamon, Peeters i Röbel (ISMIR 2012) proučavaju izbor melodije iz polifonog audio-signala. Njihov indeks „melodiness” razlikuje konture koje pripadaju melodiji od ostalih kandidata. Model koristi statističke raspodele osobina kontura. Među osobinama su srednja visina, varijacija visine, dužina, salience i vibrato. To nije prepoznavanje call-response odnosa niti automatska ocena muzičke smislenosti fraze. Original je dostupan kao [PDF na sajtu autora](https://www.justinsalamon.com/uploads/4/3/9/4/4394963/salamonmelodiccontourismir12.pdf).
+
+Korisna ideja za ovaj projekat jeste učenje raspodela osobina iz anotacija. WJD MIDI već daje izdvojenu melodiju i ne sadrži kontinualne informacije o salience i vibratu iz tog postupka. Zato sledeći mali model predstavlja našu prilagođenu hipotezu, a ne reprodukciju njihovog algoritma. Rad sam po sebi nije postupak uklanjanja sitnih ukrasa iz već transkribovane melodije.
+
+Urađena je odvojena provera tri osobine para: apsolutna razlika srednjih visina nakon oduzimanja prve note, razlika standardnih devijacija pitch vrednosti i razlika ukupnog kretanja od prve do poslednje note. Jedan mali Gaussov klasifikator uči srednje vrednosti dve klase, zajedničku dijagonalnu kovarijansu i učestalost DA/NE isključivo na ostalim solima. Fiksni prag odluke je negativan log-odnos verovatnoća manji od nule. Nema traženja najpovoljnijeg praga ili parametara na test solima.
+
+Druga varijanta dodaje samo ranije definisani ritmički RMS kao četvrtu osobinu. Ovo neposredno proverava pitanje da li isti ritmički signal pomaže uz opis konture, iako sam nije razdvajao klase.
+
+| Model | AUC iz predikcija za izdvojene sole | Izabrani DA | Izabrani NE |
+|---|---:|---:|---:|
+| Tri osobine konture, Gaussov model | 0,332 | 0 | 0 |
+| Isti model + relativni ritam RMS | 0,223 | 0 | 0 |
+
+Korišćeno je istih 65 ocenjenih kandidata iz 22 sola (18 DA / 47 NE), bez odbacivanja pri mapiranju i sa istim SHA-256 CSV-a kao ranije. Rezultat nije poboljšanje: model na fiksnom pragu sve ocenjuje kao negativno, a rangiranje je loše. AUC nije naknadno obrnut da bi delovao povoljnije. Samo predviđanje NE za svaki primer bi imalo 47/65 = 72,3% tačnosti u ovom selektovanom skupu, ali nijedan pronađen DA — jasan primer zašto ukupna tačnost nije dovoljan cilj.
+
+Ovaj eksperiment ne isključuje korisnost statističkog učenja ili ritma uopšte. Testirane su vrlo ograničene osobine i jedan jednostavan model; nemamo veliku, nezavisnu i reprezentativnu zbirku. Posebno, srednja vrednost i rasipanje gube redosled većine nota. Moguće je da imaju slične vrednosti za muzički veoma različite fraze. Ne postoji opravdanje da sada dodamo ovaj model produkcijskom skoru.
+
+```powershell
+.\venv\Scripts\python.exe scripts\evaluate_labelled_pairs.py --contours
+```
+
+Komanda samo čita podatke i prikazuje odvojene rezultate konture i konture sa ritmom. Nisu menjani detektor, prag, granice, CSV ili MIDI. Kontrolni primeri proverili su transpozicionu nezavisnost osobina, smer Gaussove odluke, slučaj nulte varijanse i nedovoljno trening primera.
+
+Poruka za mentorku može glasiti: „Pogledala sam rad, sad mi je jasnije da melodiness tu znači da kontura pripada glavnoj melodiji, a ne da je fraza muzički smislena. Ideja da učimo karakteristike iz DA/NE mi ima smisla. Probala sam mali model opisa konture i posebno istu verziju sa ritmom, ali zasad ni to nije popravilo rezultat na izdvojenim solima. Za ritam nisam mislila da ga skroz odbacimo — samo ova konkretna mera nije pomogla ni sama ni u toj jednostavnoj kombinaciji.”
+
 ## Izvori
 
 1. scikit-learn, [Cross-validation: evaluating estimator performance](https://scikit-learn.org/stable/modules/cross_validation.html), odeljci o grupama i zavisnim uzorcima. Dokumentacija pristupljena tokom ove provere.
