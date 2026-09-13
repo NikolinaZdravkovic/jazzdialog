@@ -284,7 +284,23 @@ def _evaluate_contour_model(items, with_rhythm=False):
         recall_of_labelled_DA=tp/positives,predictions=predictions)))
 
 
-def research(input_csv=INPUT_CSV, rhythm=False, contours=False):
+def _median3(pitches):
+    """One nonrecursive pass, preserving endpoints and sequence length."""
+    result = list(pitches)
+    for i in range(1, len(pitches)-1):
+        result[i] = statistics.median(pitches[i-1:i+2])
+    return result
+
+
+def _median3_shape_rms(call, response):
+    first, second = _median3(call), _median3(response)
+    first = [p-first[0] for p in first]
+    second = [p-second[0] for p in second]
+    distance, paths = dtw.warping_paths(first, second)
+    return float(distance/math.sqrt(len(dtw.best_path(paths))))
+
+
+def research(input_csv=INPUT_CSV, rhythm=False, contours=False, median3=False):
     """Read-only experiment. Grouped validation concerns labelled candidates,
     not end-to-end recall across all phrases or unseen call-response pairs.
     """
@@ -323,6 +339,8 @@ def research(input_csv=INPUT_CSV, rhythm=False, contours=False):
         if key in conflicts or min(len(entry["call"]), len(entry["response"])) < 2:
             continue
         extra = {}
+        if median3:
+            extra['median3_shape_rms'] = _median3_shape_rms(entry['call'], entry['response'])
         if rhythm:
             try:
                 extra["rhythm_rms"] = _rhythm_distance(entry["row"], entry["call"],
@@ -346,6 +364,8 @@ def research(input_csv=INPUT_CSV, rhythm=False, contours=False):
         print("Insufficient classes/groups for evaluation.")
         return
     metrics = ["pitch_legacy", "pitch_rms", "shape_rms", "shape_band_rms"]
+    if median3:
+        metrics = ['shape_rms', 'median3_shape_rms']
     if rhythm:
         metrics.append("rhythm_rms")
     for metric in metrics:
@@ -375,5 +395,6 @@ if __name__ == "__main__":
     parser.add_argument("--research", action="store_true", help="Compare DTW normalization with solo-held-out thresholds")
     parser.add_argument("--rhythm", action="store_true", help="Research rhythm and melody on exactly mapped WJD candidates")
     parser.add_argument("--contours", action="store_true", help="Test a learned contour baseline, alone and with rhythm; implies WJD mapping")
+    parser.add_argument("--median3", action="store_true", help="Compare fixed median-3 smoothing with unchanged shape RMS")
     args = parser.parse_args()
-    research(rhythm=args.rhythm or args.contours, contours=args.contours) if args.research or args.rhythm or args.contours else main()
+    research(rhythm=args.rhythm or args.contours, contours=args.contours, median3=args.median3) if args.research or args.rhythm or args.contours or args.median3 else main()

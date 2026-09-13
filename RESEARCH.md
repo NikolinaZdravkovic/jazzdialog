@@ -155,6 +155,27 @@ Komanda samo čita podatke i prikazuje odvojene rezultate konture i konture sa r
 
 Poruka za mentorku može glasiti: „Pogledala sam rad, sad mi je jasnije da melodiness tu znači da kontura pripada glavnoj melodiji, a ne da je fraza muzički smislena. Ideja da učimo karakteristike iz DA/NE mi ima smisla. Probala sam mali model opisa konture i posebno istu verziju sa ritmom, ali zasad ni to nije popravilo rezultat na izdvojenim solima. Za ritam nisam mislila da ga skroz odbacimo — samo ova konkretna mera nije pomogla ni sama ni u toj jednostavnoj kombinaciji.”
 
+## Završen median-3 eksperiment
+
+Provera blagog pojednostavljivanja konture završena je 14. septembra 2026. po lokalnom vremenu. U jednom prolazu svaka unutrašnja pitch vrednost zamenjena je medijanom tri originalne susedne vrednosti. Prva i poslednja nota ostaju iste, kao i broj nota. Zatim je oduzeta prva nota svakog segmenta i izračunat DTW RMS. Širina filtera nije podešavana prema ocenama. To je naša ograničena hipoteza, ne implementacija Salamonovog rada niti potvrđen postupak uklanjanja muzičkih ukrasa.
+
+Na istih 65 označenih kandidata (18 DA / 47 NE, 22 sola, isti prethodno navedeni SHA-256 CSV-a), rezultati su:
+
+| Mera | Deskriptivni AUC, niže je bolje | DA medijan | NE medijan | Izdvojeni DA / NE predlozi |
+|---|---:|---:|---:|---:|
+| Originalni shape RMS | 0,557 | 2,089 | 1,880 | 0 / 0 |
+| Median-3 shape RMS | 0,537 | 1,504 | 1,840 | 0 / 0 |
+
+Za oba signala svih 22 trening podela ostalo je bez praga koji daje najmanje tri predloga uz najmanje 80% preciznosti. Prag je biran samo na ostalim solima. Preciznost kod nula predloga je nedefinisana, a obuhvat poznatih DA redova je nula. Bolje razdvojeni medijani u zaglađenoj verziji nisu dovoljan dokaz: ukupno rangiranje se blago pogoršalo, a korisni predlozi nisu dobijeni. AUC nije naknadno okretan.
+
+Kontrolni testovi potvrdili su potiskivanje izolovanog skoka u pitch-u, nepromenjen ulaz, krajeve i broj nota, konstantne nizove i transpozicionu invarijantnost. Originalni CSV, MIDI, granice, pilot paket i produkcijski kriterijumi nisu menjani. Ovaj filter može ukloniti i muzički važan ton i ne uzima trajanje nota u obzir; rezultat ne isključuje sve druge postupke pojednostavljivanja melodije.
+
+```powershell
+.\venv\Scripts\python.exe scripts\evaluate_labelled_pairs.py --median3
+```
+
+Odluka: nema dokaza za uključivanje median-3 signala u detektor. Ovim se završava dogovoreni dodatni eksperiment, bez daljeg automatskog dodavanja kriterijuma. Sledeći korak ostaje ljudska provera tri grupe granica u već pripremljenom pilot datasetu i dogovor o malom nezavisnom uzorku za procenu propuštenih CR parova.
+
 ## Izvori
 
 1. scikit-learn, [Cross-validation: evaluating estimator performance](https://scikit-learn.org/stable/modules/cross_validation.html), odeljci o grupama i zavisnim uzorcima. Dokumentacija pristupljena tokom ove provere.
