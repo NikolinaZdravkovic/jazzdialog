@@ -2,7 +2,7 @@
   "schema_version": 1,
   "status": "pilot_manual_annotations",
   "source_csv": "output/wjd_phrase_call_response.csv",
-  "source_sha256": "77ee4abe33837616d50bdab302d846bbc885ea8321231406cd163b222af16a48",
+  "source_sha256": "e0737bd3d587ee14ab3b1580e2af4122839ab297dfe7ff4688e9176bac7fa0f9",
   "note_indices": "zero-based within solo; end exclusive",
   "time_units": "seconds from solo origin",
   "annotation_count": 18,
@@ -19,6 +19,8 @@
       "label": "DA",
       "candidate_source": "manual_boundary_correction",
       "manual_boundary_note": "User correction: first response note belongs to call; split 12 -> 13.",
+      "preferred_annotation_id": "wjd:14:54:67:73",
+      "boundary_choice_note": "Duzi pocetak bolje obuhvata celu pricu i odgovor; kraca verzija je takodje validna.",
       "source_key": {
         "phrase_start_index": 54,
         "phrase_end_index_inclusive": 72,
@@ -146,6 +148,8 @@
       "label": "DA",
       "candidate_source": "verzija_7bd878a",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
       "source_key": {
         "phrase_start_index": 17,
         "phrase_end_index_inclusive": 30,
@@ -246,6 +250,8 @@
       "label": "DA",
       "candidate_source": "verzija_7bd878a",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
       "source_key": {
         "phrase_start_index": 792,
         "phrase_end_index_inclusive": 803,
@@ -336,6 +342,8 @@
       "label": "DA",
       "candidate_source": "verzija_7bd878a",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
       "source_key": {
         "phrase_start_index": 402,
         "phrase_end_index_inclusive": 428,
@@ -501,6 +509,8 @@
       "label": "DA",
       "candidate_source": "WJD_fraza_skracene_ivice",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "wjd:14:54:67:73",
+      "boundary_choice_note": "Duzi pocetak bolje obuhvata celu pricu i odgovor; kraca verzija je takodje validna.",
       "source_key": {
         "phrase_start_index": 54,
         "phrase_end_index_inclusive": 72,
@@ -613,6 +623,8 @@
       "label": "DA",
       "candidate_source": "cela_WJD_fraza",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
       "source_key": {
         "phrase_start_index": 523,
         "phrase_end_index_inclusive": 534,
@@ -703,6 +715,8 @@
       "label": "DA",
       "candidate_source": "cela_WJD_fraza",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
       "source_key": {
         "phrase_start_index": 616,
         "phrase_end_index_inclusive": 653,
@@ -923,6 +937,8 @@
       "label": "DA",
       "candidate_source": "cela_WJD_fraza",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
       "source_key": {
         "phrase_start_index": 66,
         "phrase_end_index_inclusive": 85,
@@ -1053,6 +1069,8 @@
       "label": "DA",
       "candidate_source": "cela_WJD_fraza",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
       "source_key": {
         "phrase_start_index": 86,
         "phrase_end_index_inclusive": 98,
@@ -1148,6 +1166,8 @@
       "label": "DA",
       "candidate_source": "cela_WJD_fraza",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
       "source_key": {
         "phrase_start_index": 0,
         "phrase_end_index_inclusive": 23,
@@ -1298,6 +1318,8 @@
       "label": "DA",
       "candidate_source": "cela_WJD_fraza",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "wjd:73:39:55:67",
+      "boundary_choice_note": "Call 16 / response 12: ponavljanje motiva pripada call-u, zatim pocinje odgovor.",
       "source_key": {
         "phrase_start_index": 39,
         "phrase_end_index_inclusive": 66,
@@ -1470,6 +1492,8 @@
       "label": "DA",
       "candidate_source": "rucna_referenca_tacna",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
       "source_key": {
         "phrase_start_index": 21,
         "phrase_end_index_inclusive": 60,
@@ -1585,6 +1609,8 @@
       "label": "DA",
       "candidate_source": "rucna_referenca_tacna",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "wjd:73:39:55:67",
+      "boundary_choice_note": "Call 16 / response 12: ponavljanje motiva pripada call-u, zatim pocinje odgovor.",
       "source_key": {
         "phrase_start_index": 39,
         "phrase_end_index_inclusive": 66,
@@ -1757,6 +1783,8 @@
       "label": "DA",
       "candidate_source": "cela_WJD_fraza",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "wjd:74:132:146:156",
+      "boundary_choice_note": "Call 14 / response 10 obuhvata smislenu celinu; duza verzija nastavlja novu misao van tog CR-a.",
       "source_key": {
         "phrase_start_index": 132,
         "phrase_end_index_inclusive": 178,
@@ -2024,6 +2052,8 @@
       "label": "DA",
       "candidate_source": "rucna_referenca_tacna",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "wjd:74:132:146:156",
+      "boundary_choice_note": "Call 14 / response 10 obuhvata smislenu celinu; duza verzija nastavlja novu misao van tog CR-a.",
       "source_key": {
         "phrase_start_index": 132,
         "phrase_end_index_inclusive": 178,
@@ -2176,6 +2206,8 @@
       "label": "DA",
       "candidate_source": "cela_WJD_fraza",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
       "source_key": {
         "phrase_start_index": 118,
         "phrase_end_index_inclusive": 161,
@@ -2426,6 +2458,8 @@
       "label": "DA",
       "candidate_source": "verzija_7bd878a",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
       "source_key": {
         "phrase_start_index": 444,
         "phrase_end_index_inclusive": 464,
@@ -2561,6 +2595,8 @@
       "label": "DA",
       "candidate_source": "verzija_7bd878a",
       "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
       "source_key": {
         "phrase_start_index": 506,
         "phrase_end_index_inclusive": 530,

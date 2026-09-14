@@ -82,6 +82,8 @@ Za pregled različitih granica potvrđenih primera pokreni:
 
 Prikazuje naziv pesme, broj nota oba dela, vreme granice i MIDI putanju za preklapajuće verzije. Pregled koristi sačuvani paket, pa nove CSV ocene postaju vidljive nakon ponovnog `--package` izvoza.
 
+`preferred_annotation_id` čuva verziju koju je korisnica izabrala za grupu, a `boundary_choice_note` obrazloženje. Ranije DA/NE ocene i alternativne verzije ostaju sačuvane. Broj preklapanja opisuje granice i ostaje isti i nakon izbora poželjne verzije.
+
 Provera paketa na drugom računaru, bez WJD baze i izvornog CSV-a:
 
 ```powershell

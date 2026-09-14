@@ -70,6 +70,8 @@ def annotation(row, events):
                 evaluation_group=f"wjd-solo:{row['melid']}",
                 label="DA", candidate_source=row.get("candidate_source") or "unspecified",
                 manual_boundary_note=row.get("manual_boundary_note", ""),
+                preferred_annotation_id=row.get("preferred_annotation_id", ""),
+                boundary_choice_note=row.get("boundary_choice_note", ""),
                 source_key=dict(phrase_start_index=start, phrase_end_index_inclusive=end,
                                 split_point_local=int(row["split_point_local"])),
                 call=segment(call,left,split), response=segment(response,split,right),
@@ -168,6 +170,9 @@ def verify_package(source):
                         and max(left,other['call']['start_note']) < min(right,other['response']['end_note_exclusive'])}
             if set(record['overlapping_ids']) != overlaps:
                 raise ValueError('Incorrect overlap metadata')
+            preferred = record.get('preferred_annotation_id')
+            if preferred and preferred not in overlaps | {record['id']}:
+                raise ValueError('Preferred annotation must belong to the overlapping versions')
             validate_midi(record, archive.read(record['midi']))
         if result['annotations_needing_overlap_review'] != sum(bool(r['overlapping_ids']) for r in records):
             raise ValueError('Incorrect overlap count')
@@ -187,7 +192,10 @@ def print_review(result):
         print('MIDI:', record['midi'])
         if record.get('manual_boundary_note'):
             print('Manual note:', record['manual_boundary_note'])
-    print('\nOverlapping versions need human boundary review; no labels were changed.')
+        if record.get('preferred_annotation_id'):
+            print('User preferred version:', record['preferred_annotation_id'])
+            print('Reason:', record.get('boundary_choice_note', ''))
+    print('\nStored boundary preferences are separate from DA/NE labels. Overlap counts describe geometry, not unresolved decisions.')
 
 
 def package_bytes(result):
