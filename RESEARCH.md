@@ -192,10 +192,10 @@ Naš konkretan doprinos može biti nova zbirka CR anotacija vezanih za WJD note,
 - Evaluacioni skup ima 65 ocenjenih kandidata: 18 DA i 47 NE, iz 22 sola. To je selektovan razvojni uzorak, a ne iscrpna anotacija svih CR pojava u tim solima.
 - Početni Excel sadrži 20 popunjenih parova, jedan nepotpun i osam praznih redova sa ID-em. Uvoz je sačuvao izvorni tekst i SHA-256 fajla bez menjanja radne sveske.
 - Četiri para imaju jedinstveno, potpuno pitch poklapanje u naznačenom WJD solu: ručni ID 9, 10, 14 i 20. Sva četiri već postoje među DA ocenama; uvoz povezuje poreklo, ne povećava dataset za četiri.
-- Ručni ID 11 ima jedinstven predlog uz transpoziciju od -12 polutonova, u melid 402, note [0:7] i [7:15]. Obuhvata WJD fraze 1–2. Dok korisnica ne potvrdi identitet i granice, to ostaje predlog. MIDI za proveru je izvezen iz originalnih WJD događaja.
+- Ručni ID 11 je potvrđen slušanjem: My Funny Valentine, melid 402, note [0:7] i [7:15], uz transpoziciju od -12 polutonova između zapisa i WJD visina. Obuhvata WJD fraze 1–2. U pilot izvoz je dodat kao `DA`, sa MIDI-jem iz originalnih WJD događaja.
 - Ostalih 15 popunjenih parova: osam sa spoljnim izvorima, pet bez potpunog pitch poklapanja, jedan sa nedostajućom oktavom i jedan sa granicom kroz vezanu notu. To nisu negativni CR primeri: samo nisu potpuno povezani sa WJD događajima.
 
-Važno ograničenje metode: detektor ograničen na jednu WJD frazu po konstrukciji ne može vratiti par koji prelazi njenu granicu. Predlog ID 11 ilustruje ovaj problem ako se potvrdi. Iz pet trenutno mapiranih predloga ne procenjujemo učestalost problema u celoj bazi.
+Važno ograničenje metode: detektor ograničen na jednu WJD frazu po konstrukciji ne može vratiti par koji prelazi njenu granicu. Potvrđeni ID 11 ilustruje ovaj problem. Iz pet trenutno mapiranih ručnih parova ne procenjujemo učestalost problema u celoj bazi.
 
 ### Protokol završavanja zbirke i rada
 

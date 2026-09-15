@@ -467,7 +467,13 @@
             "2"
           ],
           "fits_one_wjd_phrase": false,
-          "existing_annotations": []
+          "existing_annotations": [
+            {
+              "id": "wjd:402:0:7:15",
+              "label": "DA",
+              "midi": "output/wjd_phrase_excerpts/manual_11_melid_402.mid"
+            }
+          ]
         }
       ],
       "call_pitches": [

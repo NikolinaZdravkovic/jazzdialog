@@ -102,13 +102,13 @@ Za povezivanje početne Excel tabele sa tačnim WJD notama:
 
 `output/manual_reference_mapping.json` čuva originalne zapise, izvor i predložene granice. Ne menja Excel ni CSV ocene. Četiri tačna poklapanja već postoje u DA zbirci i nisu novi parovi. Nepoznate oktave, drugi izvori i granice kroz vezanu notu ostaju označeni za proveru. Ovo je uvoz konkretnog početnog šablona, ne opšti XLSX konverter.
 
-Jedan dodatni predlog za slušanje je ručni primer 11, My Funny Valentine (melid 402). Zapis se poklapa uz pomeranje za oktavu naniže, kroz WJD fraze 1–2. Potrebna je potvrda da su izvedba i granice odgovarajuće:
+Ručni primer 11, My Funny Valentine (melid 402), potvrđen je slušanjem. Zapis se poklapa uz pomeranje za oktavu naniže, a call i response prelaze iz WJD fraze 1 u 2. Za pripremu istog MIDI isečka za proveru možeš pokrenuti:
 
 ```powershell
 .\venv\Scripts\python.exe scripts\import_manual_annotations.py "C:\Users\nikol\Downloads\jazzdialog3(4).xlsx" --preview manual:11
 ```
 
-MIDI je `output/wjd_phrase_excerpts/manual_11_melid_402_UNCONFIRMED.mid`, sa CALL/RESPONSE trakama, originalnim WJD visinama i tajmingom. Nije automatski dodat u potvrđeni dataset. Dalji rad i naučni doprinos opisani su u `RESEARCH.md`.
+Potvrđeni MIDI je `output/wjd_phrase_excerpts/manual_11_melid_402.mid`, sa CALL/RESPONSE trakama, originalnim WJD visinama i tajmingom. Granica je 7 nota za call i 8 za response. Dalji rad i naučni doprinos opisani su u `RESEARCH.md`.
 
 ## Izvor podataka i licenca
 

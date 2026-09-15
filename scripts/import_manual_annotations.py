@@ -98,6 +98,11 @@ def export_preview(result, identifier):
     if record is None or len(record['candidates'])!=1:
         raise ValueError('Preview requires exactly one mapping proposal for the requested ID.')
     candidate = record['candidates'][0]
+    confirmed = [link for link in candidate.get('existing_annotations', []) if link.get('label')=='DA']
+    if confirmed:
+        path = ROOT / confirmed[0]['midi']
+        if path.exists():
+            return path
     with sqlite3.connect((ROOT/'data_midi/wjazzd.db').resolve().as_uri()+'?mode=ro',uri=True) as conn:
         events = conn.execute('SELECT onset,pitch,duration FROM melody WHERE melid=? ORDER BY eventid',
                               (record['melid'],)).fetchall()

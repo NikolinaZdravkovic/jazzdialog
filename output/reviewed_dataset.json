@@ -2,10 +2,10 @@
   "schema_version": 1,
   "status": "pilot_manual_annotations",
   "source_csv": "output/wjd_phrase_call_response.csv",
-  "source_sha256": "e0737bd3d587ee14ab3b1580e2af4122839ab297dfe7ff4688e9176bac7fa0f9",
+  "source_sha256": "55c3df0882ae50ae26506a1679e5e2a1bb3fc59f797ab244f7c479c75547e084",
   "note_indices": "zero-based within solo; end exclusive",
   "time_units": "seconds from solo origin",
-  "annotation_count": 18,
+  "annotation_count": 19,
   "annotations_needing_overlap_review": 6,
   "validation": "Pitch sequences and CALL/RESPONSE MIDI tracks checked against WJD; musical validity supplied by human DA labels",
   "records": [
@@ -2740,6 +2740,113 @@
         ]
       },
       "midi": "output/wjd_phrase_excerpts/melid_2_phrase_43_44_split_13.mid",
+      "overlapping_ids": []
+    },
+    {
+      "id": "wjd:402:0:7:15",
+      "melid": 402,
+      "title": "My Funny Valentine",
+      "performer": "Stan Getz",
+      "phrase_value": "1+2",
+      "evaluation_group": "wjd-solo:402",
+      "label": "DA",
+      "candidate_source": "manual_reference_import",
+      "manual_boundary_note": "User confirmed exact boundary: call notes 0:7, response notes 7:15.",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 0,
+        "phrase_end_index_inclusive": 14,
+        "split_point_local": 7
+      },
+      "call": {
+        "start_note": 0,
+        "end_note_exclusive": 7,
+        "notes": [
+          {
+            "pitch": 65,
+            "onset_seconds": 4.995918367346939,
+            "duration_seconds": 0.20408163265306123
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 5.359183673469388,
+            "duration_seconds": 0.17551020408163265
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 5.669387755102041,
+            "duration_seconds": 0.22857142857142856
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 6.044897959183674,
+            "duration_seconds": 0.1836734693877551
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 6.297959183673469,
+            "duration_seconds": 0.6040816326530613
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 6.959183673469388,
+            "duration_seconds": 0.3346938775510204
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 7.391836734693878,
+            "duration_seconds": 0.39183673469387753
+          }
+        ]
+      },
+      "response": {
+        "start_note": 7,
+        "end_note_exclusive": 15,
+        "notes": [
+          {
+            "pitch": 65,
+            "onset_seconds": 8.568163265306122,
+            "duration_seconds": 0.17124716553287983
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 8.746938775510204,
+            "duration_seconds": 0.25510204081632654
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 9.03061224489796,
+            "duration_seconds": 0.14285714285714285
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 9.181632653061225,
+            "duration_seconds": 0.45102040816326533
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 9.653061224489797,
+            "duration_seconds": 0.2979591836734694
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 9.961360544217687,
+            "duration_seconds": 0.6240362811791383
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 10.628571428571428,
+            "duration_seconds": 0.2653061224489796
+          },
+          {
+            "pitch": 61,
+            "onset_seconds": 10.942857142857143,
+            "duration_seconds": 0.5387755102040817
+          }
+        ]
+      },
+      "midi": "output/wjd_phrase_excerpts/manual_11_melid_402.mid",
       "overlapping_ids": []
     }
   ]
