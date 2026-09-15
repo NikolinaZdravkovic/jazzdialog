@@ -207,6 +207,42 @@ def import_annotations(workbook):
                                 fits_one_wjd_phrase=any(a<=left and b>=right-1 for a,b,v in sections)))
                 if record['candidates']:
                     record['status']='octave_shift_requires_review'
+            if not record['candidates']:
+                # Konzervativna pomoc za rucne transkripcije: call mora biti
+                # tacan, response mora poceti odmah iza njega i sme imati
+                # samo jednu razlicitu pitch vrednost u istom indeksu.
+                # Ne koristi DTW, pa ne pretvara proizvoljnu slicnost u mapu.
+                for shift in (-24, -12, 0, 12, 24):
+                    shifted_call = [p + shift for p in call]
+                    shifted_response = [p + shift for p in response]
+                    for left in occurrences(seq, shifted_call):
+                        split = left + len(call)
+                        right = split + len(response)
+                        observed_response = seq[split:right]
+                        if len(observed_response) != len(response):
+                            continue
+                        differing = [index for index, (expected, observed) in enumerate(
+                            zip(shifted_response, observed_response)
+                        ) if expected != observed]
+                        if len(differing) != 1:
+                            continue
+                        record['candidates'].append(dict(
+                            call_start=left, call_end_exclusive=split,
+                            response_start=split, response_end_exclusive=right,
+                            one_pitch_mismatch_at=differing[0],
+                            written_response_pitch=shifted_response[differing[0]],
+                            wjd_response_pitch=observed_response[differing[0]],
+                            call_start_seconds=events[left][0],
+                            response_start_seconds=events[split][0],
+                            end_seconds=max(e[0]+e[2] for e in events[split:right]),
+                            gap_notes=0,
+                            wjd_phrases=[str(v) for a,b,v in sections if a<right and b>=left],
+                            fits_one_wjd_phrase=any(a<=left and b>=right-1 for a,b,v in sections),
+                        ))
+                if len(record['candidates']) == 1:
+                    record['status']='near_exact_pitch_proposal_requires_review'
+                elif record['candidates']:
+                    record['status']='ambiguous_near_exact_pitch_proposals_requires_review'
             for candidate in record['candidates']:
                 links=[]
                 for old in existing:

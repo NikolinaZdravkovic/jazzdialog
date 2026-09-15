@@ -14,7 +14,8 @@
     "empty_template_row": 8,
     "external_source_requires_recording_identity": 8,
     "incomplete_pair": 1,
-    "no_exact_pitch_match": 5,
+    "near_exact_pitch_proposal_requires_review": 1,
+    "no_exact_pitch_match": 4,
     "notation_requires_review": 1,
     "octave_shift_requires_review": 1,
     "unique_exact_pitch_proposal": 4
@@ -471,7 +472,7 @@
             {
               "id": "wjd:402:0:7:15",
               "label": "DA",
-              "midi": "output/wjd_phrase_excerpts/manual_11_melid_402.mid"
+              "midi": "output/wjd_phrase_excerpts/melid_402_phrase_1_2_split_7.mid"
             }
           ]
         }
@@ -678,7 +679,29 @@
         "response_notes": "R(1/8)[Cmaj7] D5(1/4)[Cmaj7] B4(1/8)[Cmaj7] D5(1/8)[Cmaj7] B4(1/8)[Cmaj7] A4(1/8)[Cmaj7] G4(1/8)[Cmaj7] B3(1/8)[Cm7] Eb4(1/8)[Cm7] A3(1/8)[Cm7] B3(5/8)[Cm7] B3(3/4)[F7]",
         "time_signature": "4/4"
       },
-      "candidates": [],
+      "candidates": [
+        {
+          "call_start": 139,
+          "call_end_exclusive": 155,
+          "response_start": 155,
+          "response_end_exclusive": 166,
+          "one_pitch_mismatch_at": 10,
+          "written_response_pitch": 59,
+          "wjd_response_pitch": 60,
+          "call_start_seconds": 40.41836734693877,
+          "response_start_seconds": 45.08571428571429,
+          "end_seconds": 48.506122448979596,
+          "gap_notes": 0,
+          "wjd_phrases": [
+            "8",
+            "9",
+            "10",
+            "11"
+          ],
+          "fits_one_wjd_phrase": false,
+          "existing_annotations": []
+        }
+      ],
       "call_pitches": [
         76,
         74,
@@ -712,7 +735,7 @@
       ],
       "notation_issues": [],
       "melid": 71,
-      "status": "no_exact_pitch_match"
+      "status": "near_exact_pitch_proposal_requires_review"
     },
     {
       "id": "manual:16",

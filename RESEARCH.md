@@ -4,7 +4,7 @@
 
 Najbrži opravdan put je mali, jasno dokumentovan dataset koji je čovek preslušao i potvrdio, uz automatizaciju predlaganja i izvoza. Trenutni rezultati ne podržavaju tvrdnju da je pronađen pouzdan automatski klasifikator. To ne poništava dataset: algoritamski kandidati i muzički potvrđeni parovi imaju različite uloge.
 
-U trenutnom CSV-u postoje 65 ocenjenih kandidata iz 22 sola: 18 DA i 47 NE. Svih 18 DA redova ima postojeći MIDI fajl. DA redovi obuhvataju 15 različitih kombinacija `melid/phrase_value`, pa 18 redova ne treba predstavljati kao 18 nezavisnih muzičkih događaja. Različite granice i skraćene verzije iste fraze treba pregledati zajedno i odabrati konačan primer, uz očuvanje istorije.
+Evaluacioni skup obuhvata 65 ranije ocenjenih automatskih kandidata iz 22 sola: 18 DA i 47 NE. Kasnije su dodata dva ručno mapirana i potvrđena primera, pa pilot izvoz sada ima 20 DA anotacija. Ta dva nova primera nisu naknadno ubačena u ranije DTW/ritam rezultate. Različite granice i skraćene verzije iste fraze treba pregledati zajedno i odabrati konačan primer, uz očuvanje istorije.
 
 Ovo istraživanje dodaje read-only eksperiment u postojeću evaluacionu skriptu. Produkcijski prag i kriterijumi detekcije nisu promenjeni. Nijedan nov kandidat nije označen kao DA bez preslušavanja.
 
@@ -188,11 +188,12 @@ Naš konkretan doprinos može biti nova zbirka CR anotacija vezanih za WJD note,
 
 ### Šta imamo, bez dvostrukog brojanja
 
-- Pilot izvoz ima 18 DA anotacija, uključujući tri grupe preklapajućih verzija. Korisnički izbor poželjnih granica ostaje zabeležen; 18 nije broj nezavisnih muzičkih događaja.
+- Pilot izvoz ima 20 DA anotacija, uključujući tri grupe preklapajućih verzija. Korisnički izbor poželjnih granica ostaje zabeležen; 20 nije broj nezavisnih muzičkih događaja.
 - Evaluacioni skup ima 65 ocenjenih kandidata: 18 DA i 47 NE, iz 22 sola. To je selektovan razvojni uzorak, a ne iscrpna anotacija svih CR pojava u tim solima.
 - Početni Excel sadrži 20 popunjenih parova, jedan nepotpun i osam praznih redova sa ID-em. Uvoz je sačuvao izvorni tekst i SHA-256 fajla bez menjanja radne sveske.
 - Četiri para imaju jedinstveno, potpuno pitch poklapanje u naznačenom WJD solu: ručni ID 9, 10, 14 i 20. Sva četiri već postoje među DA ocenama; uvoz povezuje poreklo, ne povećava dataset za četiri.
 - Ručni ID 11 je potvrđen slušanjem: My Funny Valentine, melid 402, note [0:7] i [7:15], uz transpoziciju od -12 polutonova između zapisa i WJD visina. Obuhvata WJD fraze 1–2. U pilot izvoz je dodat kao `DA`, sa MIDI-jem iz originalnih WJD događaja.
+- Ručni ID 15 je potvrđen slušanjem: Just Friends, melid 71, note [139:155] i [155:166]. Obuhvata WJD fraze 8–11. Poslednja zapisana response nota je 59, dok WJD ima 60; razlika je sačuvana u izvornoj tabeli i u opisu anotacije.
 - Ostalih 15 popunjenih parova: osam sa spoljnim izvorima, pet bez potpunog pitch poklapanja, jedan sa nedostajućom oktavom i jedan sa granicom kroz vezanu notu. To nisu negativni CR primeri: samo nisu potpuno povezani sa WJD događajima.
 
 Važno ograničenje metode: detektor ograničen na jednu WJD frazu po konstrukciji ne može vratiti par koji prelazi njenu granicu. Potvrđeni ID 11 ilustruje ovaj problem. Iz pet trenutno mapiranih ručnih parova ne procenjujemo učestalost problema u celoj bazi.
