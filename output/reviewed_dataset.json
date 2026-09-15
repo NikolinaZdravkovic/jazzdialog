@@ -2,11 +2,11 @@
   "schema_version": 1,
   "status": "pilot_manual_annotations",
   "source_csv": "output/wjd_phrase_call_response.csv",
-  "source_sha256": "28a3124df9520ae8a8ff77cc2eb4a14da32bc737878cd58fc679c7da25538f99",
+  "source_sha256": "87c535b2e22efd24d58c6c7db1d4ab318a622768409cc8f5a09489810ae644b5",
   "note_indices": "zero-based within solo; end exclusive",
   "time_units": "seconds from solo origin",
-  "annotation_count": 20,
-  "annotations_needing_overlap_review": 6,
+  "annotation_count": 22,
+  "annotations_needing_overlap_review": 7,
   "validation": "Pitch sequences and CALL/RESPONSE MIDI tracks checked against WJD; musical validity supplied by human DA labels",
   "records": [
     {
@@ -1479,7 +1479,8 @@
       },
       "midi": "output/wjd_phrase_excerpts/melid_73_phrase_4_split_6.mid",
       "overlapping_ids": [
-        "wjd:73:39:55:67"
+        "wjd:73:39:55:67",
+        "wjd:73:39:56:67"
       ]
     },
     {
@@ -1770,7 +1771,8 @@
       },
       "midi": "output/wjd_phrase_excerpts/melid_73_phrase_4_split_16.mid",
       "overlapping_ids": [
-        "wjd:73:39:45:67"
+        "wjd:73:39:45:67",
+        "wjd:73:39:56:67"
       ]
     },
     {
@@ -3015,6 +3017,288 @@
       },
       "midi": "output/wjd_phrase_excerpts/manual_15_melid_71.mid",
       "overlapping_ids": []
+    },
+    {
+      "id": "wjd:72:19:24:34",
+      "melid": 72,
+      "title": "Let's Get Lost",
+      "performer": "Chet Baker",
+      "phrase_value": "1+2",
+      "evaluation_group": "wjd-solo:72",
+      "label": "DA",
+      "candidate_source": "manual_reference_import",
+      "manual_boundary_note": "User confirmed: call notes 19:24, response notes 24:34.",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 19,
+        "phrase_end_index_inclusive": 33,
+        "split_point_local": 5
+      },
+      "call": {
+        "start_note": 19,
+        "end_note_exclusive": 24,
+        "notes": [
+          {
+            "pitch": 64,
+            "onset_seconds": 8.187755102040816,
+            "duration_seconds": 0.15714285714285714
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 8.524489795918367,
+            "duration_seconds": 0.7142857142857143
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 9.30204081632653,
+            "duration_seconds": 0.17346938775510204
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 9.63469387755102,
+            "duration_seconds": 0.27755102040816326
+          },
+          {
+            "pitch": 64,
+            "onset_seconds": 9.923628117913832,
+            "duration_seconds": 0.6341950113378685
+          }
+        ]
+      },
+      "response": {
+        "start_note": 24,
+        "end_note_exclusive": 34,
+        "notes": [
+          {
+            "pitch": 79,
+            "onset_seconds": 11.932154195011337,
+            "duration_seconds": 0.2365532879818594
+          },
+          {
+            "pitch": 77,
+            "onset_seconds": 12.175963718820862,
+            "duration_seconds": 0.7053061224489796
+          },
+          {
+            "pitch": 81,
+            "onset_seconds": 12.95204081632653,
+            "duration_seconds": 0.45714285714285713
+          },
+          {
+            "pitch": 79,
+            "onset_seconds": 13.422448979591836,
+            "duration_seconds": 0.04081632653061224
+          },
+          {
+            "pitch": 76,
+            "onset_seconds": 13.472448979591837,
+            "duration_seconds": 0.5928571428571429
+          },
+          {
+            "pitch": 73,
+            "onset_seconds": 14.077551020408164,
+            "duration_seconds": 0.09081632653061225
+          },
+          {
+            "pitch": 77,
+            "onset_seconds": 14.20204081632653,
+            "duration_seconds": 0.23265306122448978
+          },
+          {
+            "pitch": 74,
+            "onset_seconds": 14.466031746031746,
+            "duration_seconds": 0.8562358276643991
+          },
+          {
+            "pitch": 76,
+            "onset_seconds": 15.336780045351475,
+            "duration_seconds": 0.22929705215419502
+          },
+          {
+            "pitch": 74,
+            "onset_seconds": 15.581632653061224,
+            "duration_seconds": 0.12142857142857143
+          }
+        ]
+      },
+      "midi": "output/wjd_phrase_excerpts/manual_16_melid_72.mid",
+      "overlapping_ids": []
+    },
+    {
+      "id": "wjd:73:39:56:67",
+      "melid": 73,
+      "title": "Long Ago and Far Away",
+      "performer": "Chet Baker",
+      "phrase_value": "4",
+      "evaluation_group": "wjd-solo:73",
+      "label": "DA",
+      "candidate_source": "manual_reference_import",
+      "manual_boundary_note": "User confirmed tied boundary: call notes 39:56; response new notes 56:67; shared tied pitch 70 belongs to call.",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 39,
+        "phrase_end_index_inclusive": 66,
+        "split_point_local": 17
+      },
+      "call": {
+        "start_note": 39,
+        "end_note_exclusive": 56,
+        "notes": [
+          {
+            "pitch": 70,
+            "onset_seconds": 15.16843537414966,
+            "duration_seconds": 0.23219954648526078
+          },
+          {
+            "pitch": 73,
+            "onset_seconds": 15.499319727891157,
+            "duration_seconds": 0.06965986394557788
+          },
+          {
+            "pitch": 74,
+            "onset_seconds": 15.568979591836735,
+            "duration_seconds": 0.37151927437641724
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 15.940498866213153,
+            "duration_seconds": 0.16834467120181407
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 16.15528344671202,
+            "duration_seconds": 0.11609977324263039
+          },
+          {
+            "pitch": 63,
+            "onset_seconds": 16.285714285714285,
+            "duration_seconds": 0.11609977324263039
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 16.480362811791384,
+            "duration_seconds": 0.11029478458049886
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 16.62548752834467,
+            "duration_seconds": 0.16253968253968254
+          },
+          {
+            "pitch": 71,
+            "onset_seconds": 16.962176870748298,
+            "duration_seconds": 0.06965986394558144
+          },
+          {
+            "pitch": 72,
+            "onset_seconds": 17.03183673469388,
+            "duration_seconds": 0.26702947845804914
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 17.29886621315193,
+            "duration_seconds": 0.17414965986394557
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 17.484625850340137,
+            "duration_seconds": 0.12770975056689343
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 17.641360544217687,
+            "duration_seconds": 0.16253968253968254
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 17.815510204081633,
+            "duration_seconds": 0.16834467120181407
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 17.98965986394558,
+            "duration_seconds": 0.16834467120181407
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 18.18702947845805,
+            "duration_seconds": 0.09287981859410266
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 18.279909297052154,
+            "duration_seconds": 0.2960544217687075
+          }
+        ]
+      },
+      "response": {
+        "start_note": 56,
+        "end_note_exclusive": 67,
+        "notes": [
+          {
+            "pitch": 67,
+            "onset_seconds": 18.634013605442178,
+            "duration_seconds": 0.17414965986394557
+          },
+          {
+            "pitch": 63,
+            "onset_seconds": 18.877551020408163,
+            "duration_seconds": 0.1509297052154195
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 19.03455782312925,
+            "duration_seconds": 0.13351473922902493
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 19.202902494331067,
+            "duration_seconds": 0.11609977324263039
+          },
+          {
+            "pitch": 64,
+            "onset_seconds": 19.348027210884354,
+            "duration_seconds": 0.16253968253968254
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 19.5221768707483,
+            "duration_seconds": 0.13931972789115646
+          },
+          {
+            "pitch": 66,
+            "onset_seconds": 19.690521541950112,
+            "duration_seconds": 0.17414965986394557
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 20.02140589569161,
+            "duration_seconds": 0.31927437641723355
+          },
+          {
+            "pitch": 66,
+            "onset_seconds": 20.36390022675737,
+            "duration_seconds": 0.31927437641723355
+          },
+          {
+            "pitch": 64,
+            "onset_seconds": 20.688979591836734,
+            "duration_seconds": 0.26702947845804914
+          },
+          {
+            "pitch": 57,
+            "onset_seconds": 20.956009070294783,
+            "duration_seconds": 0.4527891156462585
+          }
+        ]
+      },
+      "midi": "output/wjd_phrase_excerpts/manual_17_melid_73.mid",
+      "overlapping_ids": [
+        "wjd:73:39:45:67",
+        "wjd:73:39:55:67"
+      ]
     }
   ]
 }

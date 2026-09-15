@@ -4,7 +4,7 @@
 
 Najbrži opravdan put je mali, jasno dokumentovan dataset koji je čovek preslušao i potvrdio, uz automatizaciju predlaganja i izvoza. Trenutni rezultati ne podržavaju tvrdnju da je pronađen pouzdan automatski klasifikator. To ne poništava dataset: algoritamski kandidati i muzički potvrđeni parovi imaju različite uloge.
 
-Evaluacioni skup obuhvata 65 ranije ocenjenih automatskih kandidata iz 22 sola: 18 DA i 47 NE. Kasnije su dodata dva ručno mapirana i potvrđena primera, pa pilot izvoz sada ima 20 DA anotacija. Ta dva nova primera nisu naknadno ubačena u ranije DTW/ritam rezultate. Različite granice i skraćene verzije iste fraze treba pregledati zajedno i odabrati konačan primer, uz očuvanje istorije.
+Zamrznuti evaluacioni skup obuhvata 65 ranije ocenjenih automatskih kandidata iz 22 sola: 18 DA i 47 NE. Kasnije su dodata četiri ručno mapirana i potvrđena primera, pa pilot izvoz sada ima 22 DA anotacije. Ta četiri primera nisu naknadno ubačena u ranije DTW/ritam rezultate. Različite granice i skraćene verzije iste fraze treba pregledati zajedno i odabrati konačan primer, uz očuvanje istorije.
 
 Ovo istraživanje dodaje read-only eksperiment u postojeću evaluacionu skriptu. Produkcijski prag i kriterijumi detekcije nisu promenjeni. Nijedan nov kandidat nije označen kao DA bez preslušavanja.
 
@@ -188,15 +188,23 @@ Naš konkretan doprinos može biti nova zbirka CR anotacija vezanih za WJD note,
 
 ### Šta imamo, bez dvostrukog brojanja
 
-- Pilot izvoz ima 20 DA anotacija, uključujući tri grupe preklapajućih verzija. Korisnički izbor poželjnih granica ostaje zabeležen; 20 nije broj nezavisnih muzičkih događaja.
+- Pilot izvoz ima 22 DA anotacije, uključujući tri grupe preklapajućih verzija. Korisnički izbor poželjnih granica ostaje zabeležen; 22 nije broj nezavisnih muzičkih događaja.
 - Evaluacioni skup ima 65 ocenjenih kandidata: 18 DA i 47 NE, iz 22 sola. To je selektovan razvojni uzorak, a ne iscrpna anotacija svih CR pojava u tim solima.
 - Početni Excel sadrži 20 popunjenih parova, jedan nepotpun i osam praznih redova sa ID-em. Uvoz je sačuvao izvorni tekst i SHA-256 fajla bez menjanja radne sveske.
 - Četiri para imaju jedinstveno, potpuno pitch poklapanje u naznačenom WJD solu: ručni ID 9, 10, 14 i 20. Sva četiri već postoje među DA ocenama; uvoz povezuje poreklo, ne povećava dataset za četiri.
 - Ručni ID 11 je potvrđen slušanjem: My Funny Valentine, melid 402, note [0:7] i [7:15], uz transpoziciju od -12 polutonova između zapisa i WJD visina. Obuhvata WJD fraze 1–2. U pilot izvoz je dodat kao `DA`, sa MIDI-jem iz originalnih WJD događaja.
 - Ručni ID 15 je potvrđen slušanjem: Just Friends, melid 71, note [139:155] i [155:166]. Obuhvata WJD fraze 8–11. Poslednja zapisana response nota je 59, dok WJD ima 60; razlika je sačuvana u izvornoj tabeli i u opisu anotacije.
+- Ručni ID 16 je potvrđen slušanjem: Let's Get Lost, melid 72, note [19:24] i [24:34]. Call se potpuno poklapa; neposredni response je predložen DTW oblikom i potom ljudski potvrđen. Obuhvata WJD fraze 1–2.
+- Ručni ID 17 je potvrđen slušanjem: Long Ago and Far Away, melid 73, note [39:56] i [56:67]. Vezana pitch vrednost 70 je zapisana jednom, na kraju call-a. Ovaj par je unutar WJD fraze 4.
 - Ostalih 15 popunjenih parova: osam sa spoljnim izvorima, pet bez potpunog pitch poklapanja, jedan sa nedostajućom oktavom i jedan sa granicom kroz vezanu notu. To nisu negativni CR primeri: samo nisu potpuno povezani sa WJD događajima.
 
-Važno ograničenje metode: detektor ograničen na jednu WJD frazu po konstrukciji ne može vratiti par koji prelazi njenu granicu. Potvrđeni ID 11 ilustruje ovaj problem. Iz pet trenutno mapiranih ručnih parova ne procenjujemo učestalost problema u celoj bazi.
+Važno ograničenje metode: detektor ograničen na jednu WJD frazu po konstrukciji ne može vratiti par koji prelazi njenu granicu. Među 22 trenutne potvrđene anotacije osam prelazi najmanje jednu WJD granicu fraze. To je opis pilot anotacija, ne procena učestalosti u celoj bazi.
+
+### Proširena eksplorativna provera nakon ručnog mapiranja
+
+Na svih 69 trenutno označenih redova (22 DA / 47 NE) proverene su četiri DTW mere sa odvojenim solom pri izboru praga. Ova provera je odvojena od zamrznutog skupa iznad: četiri nova DA reda potiču iz početne ručne zbirke, dok NE redovi i dalje potiču iz ranije generisanih kandidata. Zato rezultat ne predstavlja tačnost na slučajnom uzorku cele WJD baze.
+
+Najbolja opisna mera bila je ograničeni shape-DTW RMS sa AUC 0,571, ali je u leave-one-solo-out proveri vratila samo 1 DA i 2 NE (preciznost 0,333; obuhvat označenih DA 0,045). Ostale tri mere nisu vratile nijedan DA pri tom postupku. Ovo je koristan negativan nalaz: ni promena normalizacije niti ograničavanje warping puta ne rešavaju razliku između muzičkog dijaloga i ponavljajućeg motiva na ovom malom skupu.
 
 ### Protokol završavanja zbirke i rada
 

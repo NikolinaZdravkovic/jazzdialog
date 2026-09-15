@@ -10,14 +10,15 @@
     "tuplets": "Original T5/T6 notation preserved; no timing reconstructed"
   },
   "counts": {
-    "boundary_inside_tied_note_requires_review": 1,
+    "anchored_shape_proposal_requires_review": 1,
     "empty_template_row": 8,
     "external_source_requires_recording_identity": 8,
     "incomplete_pair": 1,
     "near_exact_pitch_proposal_requires_review": 1,
-    "no_exact_pitch_match": 4,
+    "no_exact_pitch_match": 3,
     "notation_requires_review": 1,
     "octave_shift_requires_review": 1,
+    "tied_boundary_pitch_proposal_requires_review": 1,
     "unique_exact_pitch_proposal": 4
   },
   "records": [
@@ -699,7 +700,13 @@
             "11"
           ],
           "fits_one_wjd_phrase": false,
-          "existing_annotations": []
+          "existing_annotations": [
+            {
+              "id": "wjd:71:139:155:166",
+              "label": "DA",
+              "midi": "output/wjd_phrase_excerpts/manual_15_melid_71.mid"
+            }
+          ]
         }
       ],
       "call_pitches": [
@@ -752,7 +759,31 @@
         "response_notes": "R(1/4)[Em7(b5)] G5(1/4)[Em7(b5)] F5(2/4)[Em7(b5)] A5(1/8)[Em7(b5)] A5(1/4)[A7] G5(1/16)[A7] E5(5/16)[A7] C#5(1/8)[A7] F5(1/4)[A7] D5(1/8)[A7] D5(2/4)[Dm7] ",
         "time_signature": "4/4"
       },
-      "candidates": [],
+      "candidates": [
+        {
+          "call_start": 19,
+          "call_end_exclusive": 24,
+          "response_start": 24,
+          "response_end_exclusive": 34,
+          "response_shape_dtw": 0.18181818181818182,
+          "call_start_seconds": 8.187755102040816,
+          "response_start_seconds": 11.932154195011337,
+          "end_seconds": 15.703061224489796,
+          "gap_notes": 0,
+          "wjd_phrases": [
+            "1",
+            "2"
+          ],
+          "fits_one_wjd_phrase": false,
+          "existing_annotations": [
+            {
+              "id": "wjd:72:19:24:34",
+              "label": "DA",
+              "midi": "output/wjd_phrase_excerpts/manual_16_melid_72.mid"
+            }
+          ]
+        }
+      ],
       "call_pitches": [
         64,
         67,
@@ -774,7 +805,7 @@
       ],
       "notation_issues": [],
       "melid": 72,
-      "status": "no_exact_pitch_match"
+      "status": "anchored_shape_proposal_requires_review"
     },
     {
       "id": "manual:17",
@@ -791,7 +822,30 @@
         "response_notes": "_Bb4(3/16)[Bbmaj7] G4(3/16)[Bbmaj7]  Eb4(1/8)[Bbmaj7] C4(1/8)[Bbmaj7] D4(1/8)[Bbmaj7] E4(1/8)[Bbmaj7] F4(1/8)[Bbmaj7] F#4(1/4)[A7] A4(1/4)[A7] F#4(1/4)[A7] E4(3/16)[A7] A3(1/16)[A7] _ A3(1/4)[Dmaj7] R(3/4)[Dmaj7] ",
         "time_signature": "4/4"
       },
-      "candidates": [],
+      "candidates": [
+        {
+          "call_start": 39,
+          "call_end_exclusive": 56,
+          "response_start": 56,
+          "response_end_exclusive": 67,
+          "shared_tied_pitch": 70,
+          "call_start_seconds": 15.16843537414966,
+          "response_start_seconds": 18.634013605442178,
+          "end_seconds": 21.40879818594104,
+          "gap_notes": 0,
+          "wjd_phrases": [
+            "4"
+          ],
+          "fits_one_wjd_phrase": true,
+          "existing_annotations": [
+            {
+              "id": "wjd:73:39:56:67",
+              "label": "DA",
+              "midi": "output/wjd_phrase_excerpts/manual_17_melid_73.mid"
+            }
+          ]
+        }
+      ],
       "call_pitches": [
         70,
         73,
@@ -827,7 +881,7 @@
       ],
       "notation_issues": [],
       "melid": 73,
-      "status": "boundary_inside_tied_note_requires_review"
+      "status": "tied_boundary_pitch_proposal_requires_review"
     },
     {
       "id": "manual:18",

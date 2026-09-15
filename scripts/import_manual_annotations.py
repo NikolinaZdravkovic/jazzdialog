@@ -13,6 +13,11 @@ import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
+try:
+    from .find_internal_split import _dtw_norm
+except ImportError:
+    from find_internal_split import _dtw_norm
+
 ROOT = Path(__file__).resolve().parents[1]
 NS = {'s':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
 NOTE = re.compile(r'([A-GR])([#b]?)(-?\d+)?\(([^()]*)\)')
@@ -172,9 +177,8 @@ def import_annotations(workbook):
             if ci or ri:
                 record['status']='notation_requires_review'
                 continue
-            if raw.get('call_notes','').rstrip().endswith('_') or raw.get('response_notes','').lstrip().startswith('_'):
-                record['status']='boundary_inside_tied_note_requires_review'
-                continue
+            boundary_tie = (raw.get('call_notes','').rstrip().endswith('_')
+                            or raw.get('response_notes','').lstrip().startswith('_'))
             seq=[round(e[1]) for e in events]
             calls,responses=occurrences(seq,call),occurrences(seq,response)
             for left in calls:
@@ -191,6 +195,30 @@ def import_annotations(workbook):
                         fits_one_wjd_phrase=any(a<=left and b>=right-1 for a,b,v in sections)))
             n=len(record['candidates'])
             record['status']='unique_exact_pitch_proposal' if n==1 else 'ambiguous_exact_pitch_proposals' if n else 'no_exact_pitch_match'
+            if n==0 and boundary_tie and call[-1] == response[0]:
+                # Jedna vezana nota pripada kraju call-a i ne duplira se kao
+                # nova MIDI nota na pocetku response-a.
+                for shift in (-24, -12, 0, 12, 24):
+                    combined = [p + shift for p in call + response[1:]]
+                    for left in occurrences(seq, combined):
+                        split = left + len(call)
+                        right = left + len(combined)
+                        record['candidates'].append(dict(
+                            call_start=left, call_end_exclusive=split,
+                            response_start=split, response_end_exclusive=right,
+                            shared_tied_pitch=call[-1] + shift,
+                            call_start_seconds=events[left][0],
+                            response_start_seconds=events[split][0],
+                            end_seconds=max(e[0]+e[2] for e in events[split:right]),
+                            gap_notes=0,
+                            wjd_phrases=[str(v) for a,b,v in sections if a<right and b>=left],
+                            fits_one_wjd_phrase=any(a<=left and b>=right-1 for a,b,v in sections),
+                        ))
+                if len(record['candidates']) == 1:
+                    record['status']='tied_boundary_pitch_proposal_requires_review'
+                elif record['candidates']:
+                    record['status']='ambiguous_tied_boundary_pitch_proposals_requires_review'
+                n = len(record['candidates'])
             if n==0:
                 # Octave alternatives are explicit proposals, never corrections.
                 for shift in (-24,-12,12,24):
@@ -243,6 +271,41 @@ def import_annotations(workbook):
                     record['status']='near_exact_pitch_proposal_requires_review'
                 elif record['candidates']:
                     record['status']='ambiguous_near_exact_pitch_proposals_requires_review'
+            if not record['candidates']:
+                # Poslednji, i dalje strogo vezan predlog: tacan call i
+                # neposredan response iste duzine, sa DTW oblikom <= 0.20.
+                # Ovo samo priprema MIDI za ljudsko slusanje.
+                for shift in (-24, -12, 0, 12, 24):
+                    shifted_call = [p + shift for p in call]
+                    shifted_response = [p + shift for p in response]
+                    response_shape = [p - shifted_response[0] for p in shifted_response]
+                    for left in occurrences(seq, shifted_call):
+                        split = left + len(call)
+                        right = split + len(response)
+                        observed_response = seq[split:right]
+                        if len(observed_response) != len(response):
+                            continue
+                        score = _dtw_norm(
+                            response_shape,
+                            [p - observed_response[0] for p in observed_response],
+                        )
+                        if score > 0.20:
+                            continue
+                        record['candidates'].append(dict(
+                            call_start=left, call_end_exclusive=split,
+                            response_start=split, response_end_exclusive=right,
+                            response_shape_dtw=score,
+                            call_start_seconds=events[left][0],
+                            response_start_seconds=events[split][0],
+                            end_seconds=max(e[0]+e[2] for e in events[split:right]),
+                            gap_notes=0,
+                            wjd_phrases=[str(v) for a,b,v in sections if a<right and b>=left],
+                            fits_one_wjd_phrase=any(a<=left and b>=right-1 for a,b,v in sections),
+                        ))
+                if len(record['candidates']) == 1:
+                    record['status']='anchored_shape_proposal_requires_review'
+                elif record['candidates']:
+                    record['status']='ambiguous_anchored_shape_proposals_requires_review'
             for candidate in record['candidates']:
                 links=[]
                 for old in existing:
