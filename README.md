@@ -38,6 +38,14 @@ Pre detekcije možeš proveriti koliko fraza u grupi ima dovoljno nota i trajanj
 
 Opcija `--melids 26 27 28` bira pesme bez menjanja `SEARCH_ITEMS`. Opcija `--dry-run` pokreće detekciju bez upisa ili brisanja CSV/MIDI fajlova. Svako pokretanje prikazuje razloge odbacivanja i najmanji prilagođeni skor po pesmi. „Podobna” znači samo da fraza zadovoljava ograničenja dužine, a ne da je muzički validan CR. Nula rezultata zato nije dokaz da u solu nema CR parova, posebno onih koji prelaze granice WJD fraza.
 
+Ako je serija novih praznih kandidata loša, možeš je ukloniti bez diranja svojih `DA`/`NE` oznaka:
+
+```powershell
+.\venv\Scripts\python.exe scripts\search_wjd_phrase_splits.py --melids 31 32 33 --discard-unreviewed
+```
+
+Komanda uklanja samo redove bez oznake i samo njihove MIDI isečke. Detektor sada unapred odbacuje identičan call/response i dominantan kratki obrazac ponovljen najmanje tri puta u segmentu; to je zaštita od DTW minimuma nastalih iz ostinato petlji, a ne nova opšta definicija call-response veze.
+
 ## Evaluacija ručnih oznaka
 
 Nakon što se kandidati označe sa `DA` ili `NE`, pokreni:

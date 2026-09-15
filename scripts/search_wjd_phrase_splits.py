@@ -56,8 +56,16 @@ BOUNDARY_MIN_GAIN_SECONDS = 0.05
 # Skor je distanca, zato veci skor znaci manju verovatnocu izbora.
 NEGATIVE_PENALTY_WEIGHT = 0.20
 NEGATIVE_SIMILARITY_LIMIT = 0.30
-POSITIVE_REWARD_WEIGHT = 0.65
+# Rucno potvrđeni parovi ostaju dokumentacija, ali nisu automatska nagrada.
+# Na seriji 31–50 nagrada je spustila dva muzicki losa kandidata ispod praga.
+POSITIVE_REWARD_WEIGHT = 0.0
 POSITIVE_SIMILARITY_LIMIT = 0.30
+
+# Kratak motiv ponovljen najmanje tri puta unutar segmenta je ostinato/loop,
+# ne dokaz dijaloga. Ovo se primenjuje samo na nove automatske kandidate;
+# ranije rucne DA anotacije se nikada ne menjaju ovim filtrom.
+MAX_LOOP_PERIOD_NOTES = 6
+LOOP_DOMINANCE_FRACTION = 0.65
 
 # U veoma brzom tempu tri kratke note nisu dovoljan incipit dokaz.
 FAST_TEMPO_BPM = 215.0
@@ -221,6 +229,37 @@ def _longest_approximate_interval_run(call, response, tolerance=2):
     return longest / min(len(call_intervals), len(response_intervals))
 
 
+def _self_loop_fraction(pitches, max_period=MAX_LOOP_PERIOD_NOTES):
+    """Udeo najduzeg tacnog periodickog niza od najmanje tri ponavljanja."""
+    length = len(pitches)
+    best_length, best_period = 0, None
+    for period in range(1, min(max_period, length // 3) + 1):
+        run_length = period
+        for index in range(period, length):
+            run_length = run_length + 1 if pitches[index] == pitches[index - period] else period
+            if run_length > best_length and run_length >= 3 * period:
+                best_length, best_period = run_length, period
+    return best_length / length if length else 0.0, best_period
+
+
+def _is_repetitive_loop_candidate(call, response):
+    """Blokiraj identican eho i dominantne kratke ostinato obrasce.
+
+    Dva puta ponovljen motiv ostaje dozvoljen: to moze biti muzicki call.
+    Tri ili vise uzastopnih istih ciklusa, posebno na obe strane podele,
+    jeste tip laznog DTW minimuma koji je korisnica odbacila u seriji 31–50.
+    """
+    if call == response:
+        return True
+    call_fraction, call_period = _self_loop_fraction(call)
+    response_fraction, response_period = _self_loop_fraction(response)
+    if (call_fraction >= LOOP_DOMINANCE_FRACTION and response_fraction >= LOOP_DOMINANCE_FRACTION
+            and call_period is not None and response_period is not None):
+        return True
+    shared_motif = _longest_approximate_interval_run(call, response)
+    return (call_fraction >= 0.90 and call_period is not None and shared_motif >= 0.35)
+
+
 def _candidate_diagnostics(call, response, call_start, response_start, response_end):
     """Mere za redosled rucnog pregleda; ne odlucuju automatski DA/NE."""
     _distance, paths = dtw.warping_paths(call, response)
@@ -335,7 +374,7 @@ def _negative_example_penalty(call, response, rejected_pairs):
 
 def _positive_example_reward(call, response, accepted_pairs):
     """Nagradi samo kandidata koji lici na vec rucno potvrđen par."""
-    if not accepted_pairs:
+    if POSITIVE_REWARD_WEIGHT <= 0 or not accepted_pairs:
         return 0.0
 
     nearest_distance = _nearest_reference_distance(
@@ -455,6 +494,8 @@ def _find_best_scored_split(
     for split in splits:
         call = phrase_pitches[:split]
         response = phrase_pitches[split:]
+        if _is_repetitive_loop_candidate(call, response):
+            continue
         ratio = len(response) / len(call)
         if not MIN_RESPONSE_CALL_RATIO <= ratio <= MAX_RESPONSE_CALL_RATIO:
             continue
@@ -966,12 +1007,54 @@ def _remove_obsolete_unreviewed_midis(previous_rows, current_rows):
             print(f"[UPOZORENJE] Stari nepregledani MIDI nije obrisan: {path}: {error}")
 
 
+def discard_unreviewed_melids(melids, output_csv=OUTPUT_CSV):
+    """Ukloni samo neocenjene redove/MIDI-je za eksplicitno navedene sole."""
+    selected = {str(melid) for melid in melids}
+    if not output_csv.exists():
+        return 0, 0
+    original = output_csv.read_bytes()
+    with output_csv.open("r", encoding="utf-8-sig", newline="") as stream:
+        reader = csv.DictReader(stream)
+        columns = reader.fieldnames or []
+        rows = list(reader)
+    removed = [row for row in rows if row.get("melid") in selected and not row.get("validnost", "").strip()]
+    kept = [row for row in rows if row not in removed]
+    if not removed:
+        return 0, 0
+    # Stitimo svaki MIDI koji se i dalje pominje u CSV-u.
+    kept_paths = {Path(row["excerpt_midi"]).resolve() for row in kept if row.get("excerpt_midi")}
+    if output_csv.read_bytes() != original:
+        raise RuntimeError("CSV je promenjen tokom brisanja; pokreni komandu ponovo.")
+    temporary = output_csv.with_suffix(".csv.tmp")
+    try:
+        with temporary.open("w", encoding="utf-8-sig", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=columns)
+            writer.writeheader()
+            writer.writerows(kept)
+        temporary.replace(output_csv)
+    finally:
+        temporary.unlink(missing_ok=True)
+    deleted_midis = 0
+    folder = EXCERPT_DIR.resolve()
+    for row in removed:
+        path = Path(row.get("excerpt_midi", "")).resolve()
+        if path in kept_paths or path.parent != folder or path.suffix.lower() != ".mid":
+            continue
+        try:
+            path.unlink(missing_ok=True)
+            deleted_midis += 1
+        except OSError as error:
+            print(f"[UPOZORENJE] MIDI nije obrisan: {path}: {error}")
+    return len(removed), deleted_midis
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--audit", action="store_true", help="Pregled duzina bez upisa rezultata")
     parser.add_argument("--dry-run", action="store_true", help="Detekcija bez CSV/MIDI upisa ili brisanja")
     parser.add_argument("--melids", nargs="+", type=int, help="Melid brojevi umesto SEARCH_ITEMS")
     parser.add_argument("--all", action="store_true", help="Obradi svih 456 WJD sola; koristi --dry-run za bezbedan pregled")
+    parser.add_argument("--discard-unreviewed", action="store_true", help="Obrisi samo prazne redove i njihove MIDI-je za --melids")
     args = parser.parse_args()
     if args.all and args.melids is not None:
         parser.error("Koristi ili --all ili --melids, ne oba.")
@@ -985,6 +1068,12 @@ if __name__ == "__main__":
             conn.close()
     else:
         items = args.melids if args.melids is not None else SEARCH_ITEMS
+    if args.discard_unreviewed:
+        if args.all or args.melids is None:
+            parser.error("--discard-unreviewed zahteva eksplicitne --melids brojeve.")
+        row_count, midi_count = discard_unreviewed_melids(items)
+        print(f"Uklonjeno nepregledanih redova: {row_count}; MIDI fajlova: {midi_count}")
+        raise SystemExit(0)
     if args.audit:
         for row in audit_phrases(items):
             print(f"{row['melid']}: {row['title']} ({row['performer']}) | "
