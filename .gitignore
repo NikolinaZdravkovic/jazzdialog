@@ -11,6 +11,7 @@ __pycache__/
 /output/*
 !/output/wjd_phrase_call_response.csv
 !/output/reviewed_dataset.json
+!/output/manual_reference_mapping.json
 
 # Lokalna podesavanja editora i operativnog sistema
 /.vscode/

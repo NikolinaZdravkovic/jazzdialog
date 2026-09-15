@@ -176,7 +176,40 @@ Kontrolni testovi potvrdili su potiskivanje izolovanog skoka u pitch-u, nepromen
 
 Odluka: nema dokaza za uključivanje median-3 signala u detektor. Ovim se završava dogovoreni dodatni eksperiment, bez daljeg automatskog dodavanja kriterijuma. Sledeći korak ostaje ljudska provera tri grupe granica u već pripremljenom pilot datasetu i dogovor o malom nezavisnom uzorku za procenu propuštenih CR parova.
 
-## Izvori
+## Dataset kao glavni rezultat — stanje 15. septembra 2026.
+
+Cilj rada je dokumentovana zbirka call-response anotacija jazz sola iz WJD-a, uz proveru koliko jednostavne mere sličnosti pomažu pri njenoj izgradnji. Potpuno automatsko prepoznavanje nije uslov za ovaj doprinos. Tvrdnju o poboljšanju detektora moramo vezati za rezultate na nezavisnim podacima; dosadašnji eksperimenti je ne podržavaju.
+
+### Šta već postoji u literaturi
+
+Hu i saradnici (AAAI 2024), [Responding to the Call](https://ojs.aaai.org/index.php/AAAI/article/view/27807), objavili su Call-Response Dataset sa 19.155 anotiranih parova i model za generisanje odgovora. Zato ne možemo tvrditi da je naša zbirka prvi CR dataset. [Dig That Lick](https://dig-that-lick.eecs.qmul.ac.uk/) već omogućava pretragu melodijskih obrazaca u jazz bazama, uključujući WJD, po intervalima, konturi i visinama. Ni pretraga sličnih jazz motiva sama po sebi nije nova.
+
+Naš konkretan doprinos može biti nova zbirka CR anotacija vezanih za WJD note, sa granicama oba segmenta, ljudskim odlukama i dokumentovanim alternativama granica, uz reproduktivan eksperiment o ograničenjima DTW mera. Prioritet tvrdnje „prva ovakva jazz zbirka” nije utvrđen ovom proverom i ne treba ga navoditi. Naučni doprinos nije isto što i dokaz da niko nije radio ništa slično.
+
+### Šta imamo, bez dvostrukog brojanja
+
+- Pilot izvoz ima 18 DA anotacija, uključujući tri grupe preklapajućih verzija. Korisnički izbor poželjnih granica ostaje zabeležen; 18 nije broj nezavisnih muzičkih događaja.
+- Evaluacioni skup ima 65 ocenjenih kandidata: 18 DA i 47 NE, iz 22 sola. To je selektovan razvojni uzorak, a ne iscrpna anotacija svih CR pojava u tim solima.
+- Početni Excel sadrži 20 popunjenih parova, jedan nepotpun i osam praznih redova sa ID-em. Uvoz je sačuvao izvorni tekst i SHA-256 fajla bez menjanja radne sveske.
+- Četiri para imaju jedinstveno, potpuno pitch poklapanje u naznačenom WJD solu: ručni ID 9, 10, 14 i 20. Sva četiri već postoje među DA ocenama; uvoz povezuje poreklo, ne povećava dataset za četiri.
+- Ručni ID 11 ima jedinstven predlog uz transpoziciju od -12 polutonova, u melid 402, note [0:7] i [7:15]. Obuhvata WJD fraze 1–2. Dok korisnica ne potvrdi identitet i granice, to ostaje predlog. MIDI za proveru je izvezen iz originalnih WJD događaja.
+- Ostalih 15 popunjenih parova: osam sa spoljnim izvorima, pet bez potpunog pitch poklapanja, jedan sa nedostajućom oktavom i jedan sa granicom kroz vezanu notu. To nisu negativni CR primeri: samo nisu potpuno povezani sa WJD događajima.
+
+Važno ograničenje metode: detektor ograničen na jednu WJD frazu po konstrukciji ne može vratiti par koji prelazi njenu granicu. Predlog ID 11 ilustruje ovaj problem ako se potvrdi. Iz pet trenutno mapiranih predloga ne procenjujemo učestalost problema u celoj bazi.
+
+### Protokol završavanja zbirke i rada
+
+1. Prvo povezati postojeće ručne anotacije; ne tražiti da se već obrađeni solo ponovo anotira od početka. Za nejasne zapise tražiti samo nedostajuću informaciju ili preslušavanje konkretnog isečka.
+2. U glavnu zbirku uključivati samo potvrđene parove sa proverenim izvorom i granicama. Alternativne verzije i NE primere sačuvati kao razvojnu dokumentaciju. Isti događaj ne brojati više puta zbog različitih granica.
+3. Za proširenje koristiti male grupe novih kandidata uz MIDI i ručnu potvrdu. Granice ručnog referentnog dataseta mogu prelaziti WJD fraze; ograničenje trenutnog detektora mora biti jasno navedeno. Ne uvoditi automatsko spajanje kao pretpostavljeno rešenje.
+4. Ako vreme dozvoli, mentorka nezavisno proverava mali unapred izabran podskup DA, NE i spornih granica. Sačuvati početne nezavisne odluke pre dogovora. Bez druge procene ne tvrdimo da smo izmerili slaganje anotatora.
+5. Za rad koristiti postojeće rezultate kao pilot analizu. Na novim solima zamrznuti kriterijume pre ocenjivanja. Preciznost je udeo DA među pregledanim predlozima; recall celog sola zahteva iscrpnu referencu. Ranijih „80% accuracy” ne predstavljati kao ukupnu tačnost prepoznavanja svih fraza.
+
+Predlog naslova: **Izgradnja ručno proverene zbirke call-response parova u jazz solažima i analiza ograničenja melodijske sličnosti**.
+
+Osnova zaključka: na našem razvojnom uzorku testirane mere sličnosti nisu omogućile pouzdanu samostalnu identifikaciju CR odnosa. Ručna provera i izbor granica ostaju potrebni. Doprinos su proverljive anotacije i analiza konkretnih ograničenja; ne zaključujemo da je DTW beskoristan niti da ritam ne može pomoći u drugim postupcima.
+
+## Literatura
 
 1. scikit-learn, [Cross-validation: evaluating estimator performance](https://scikit-learn.org/stable/modules/cross_validation.html), odeljci o grupama i zavisnim uzorcima. Dokumentacija pristupljena tokom ove provere.
 2. Wannes Meert i saradnici, DTAIDistance, [innerdistance.py](https://github.com/wannesm/dtaidistance/blob/master/src/dtaidistance/innerdistance.py). Podrazumevana kvadratna lokalna greška i završni kvadratni koren; dodatno provereno kontrolnim primerom u lokalnom okruženju.

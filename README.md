@@ -92,6 +92,24 @@ python scripts\export_reviewed_dataset.py --verify-package output\reviewed_datas
 
 Potrebni su Python i `pretty_midi`. Provera čita sadržaj ZIP-a bez raspakivanja i proverava note, tajming, granice, grupe po solu i oznake preklapanja. Proverava usklađenost paketa, a ne muzičku ispravnost DA ocena.
 
-## Izvor podataka
+## Početne ručne anotacije
+
+Za povezivanje početne Excel tabele sa tačnim WJD notama:
+
+```powershell
+.\venv\Scripts\python.exe scripts\import_manual_annotations.py "C:\Users\nikol\Downloads\jazzdialog3(4).xlsx" --export
+```
+
+`output/manual_reference_mapping.json` čuva originalne zapise, izvor i predložene granice. Ne menja Excel ni CSV ocene. Četiri tačna poklapanja već postoje u DA zbirci i nisu novi parovi. Nepoznate oktave, drugi izvori i granice kroz vezanu notu ostaju označeni za proveru. Ovo je uvoz konkretnog početnog šablona, ne opšti XLSX konverter.
+
+Jedan dodatni predlog za slušanje je ručni primer 11, My Funny Valentine (melid 402). Zapis se poklapa uz pomeranje za oktavu naniže, kroz WJD fraze 1–2. Potrebna je potvrda da su izvedba i granice odgovarajuće:
+
+```powershell
+.\venv\Scripts\python.exe scripts\import_manual_annotations.py "C:\Users\nikol\Downloads\jazzdialog3(4).xlsx" --preview manual:11
+```
+
+MIDI je `output/wjd_phrase_excerpts/manual_11_melid_402_UNCONFIRMED.mid`, sa CALL/RESPONSE trakama, originalnim WJD visinama i tajmingom. Nije automatski dodat u potvrđeni dataset. Dalji rad i naučni doprinos opisani su u `RESEARCH.md`.
+
+## Izvor podataka i licenca
 
 Weimar Jazz Database je deo [Jazzomat Research Project](https://jazzomat.hfm-weimar.de/) i dostupna je pod Open Data Commons Open Database License (ODbL).
