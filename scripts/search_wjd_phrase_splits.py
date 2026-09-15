@@ -971,8 +971,20 @@ if __name__ == "__main__":
     parser.add_argument("--audit", action="store_true", help="Pregled duzina bez upisa rezultata")
     parser.add_argument("--dry-run", action="store_true", help="Detekcija bez CSV/MIDI upisa ili brisanja")
     parser.add_argument("--melids", nargs="+", type=int, help="Melid brojevi umesto SEARCH_ITEMS")
+    parser.add_argument("--all", action="store_true", help="Obradi svih 456 WJD sola; koristi --dry-run za bezbedan pregled")
     args = parser.parse_args()
-    items = args.melids if args.melids is not None else SEARCH_ITEMS
+    if args.all and args.melids is not None:
+        parser.error("Koristi ili --all ili --melids, ne oba.")
+    if args.all:
+        conn = connect_db(DB_PATH)
+        try:
+            items = [row[0] for row in conn.execute(
+                "SELECT DISTINCT melid FROM sections WHERE type='PHRASE' ORDER BY melid"
+            )]
+        finally:
+            conn.close()
+    else:
+        items = args.melids if args.melids is not None else SEARCH_ITEMS
     if args.audit:
         for row in audit_phrases(items):
             print(f"{row['melid']}: {row['title']} ({row['performer']}) | "

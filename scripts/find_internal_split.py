@@ -1,5 +1,9 @@
 from dtaidistance import dtw
 try:
+    import numpy as np
+except ImportError:  # Zadrzi rad u minimalnom okruzenju bez NumPy-ja.
+    np = None
+try:
     from .segment_phrases import segment_by_rests, phrase_to_pitch_sequence, phrase_to_interval_sequence
 except ImportError:
     from segment_phrases import segment_by_rests, phrase_to_pitch_sequence, phrase_to_interval_sequence
@@ -7,7 +11,15 @@ except ImportError:
 
 def _dtw_norm(a, b):
     """DTW distanca podeljena stvarnom duzinom najbolje warping putanje."""
-    distance, paths = dtw.warping_paths(a, b)
+    # C implementacija iz dtaidistance vraca isti put kao referentna verzija,
+    # ali je bitno brza kada se pregleda cela WJD baza. Fallback cuva staro
+    # ponasanje ako C/NumPy varijanta nije dostupna.
+    if np is not None and hasattr(dtw, "warping_paths_fast"):
+        distance, paths = dtw.warping_paths_fast(
+            np.asarray(a, dtype=np.double), np.asarray(b, dtype=np.double)
+        )
+    else:
+        distance, paths = dtw.warping_paths(a, b)
     best_path = dtw.best_path(paths)
     return distance / len(best_path)
 
