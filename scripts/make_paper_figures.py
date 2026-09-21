@@ -6,6 +6,7 @@ na celoj WJD bazi.
 
 import csv
 import json
+import sqlite3
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -19,6 +20,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 CSV_PATH = ROOT / "output" / "wjd_phrase_call_response.csv"
+DATABASE_PATH = ROOT / "data_midi" / "wjazzd.db"
 FIGURE_DIR = ROOT / "output" / "figures"
 
 
@@ -35,14 +37,26 @@ def _pitches(row, field):
 def boundary_scope(rows):
     """Broj potvrdenih anotacija unutar i preko WJD granice."""
     positive = [row for row in rows if row["validnost"].strip().upper() == "DA"]
-    cross = sum("+" in str(row.get("phrase_value", "")) for row in positive)
+    # MLU kandidati nemaju phrase_value sa znakom +, zato granicu proveravamo
+    # prema samoj WJD tabeli sections za svaku potvrđenu apsolutnu granicu.
+    cross = 0
+    with sqlite3.connect(DATABASE_PATH) as conn:
+        for row in positive:
+            start = int(row["call_start_solo"])
+            end = int(row["response_end_solo_inclusive"])
+            count = conn.execute(
+                "SELECT COUNT(*) FROM sections WHERE melid=? AND type='PHRASE' "
+                "AND NOT (end < ? OR start > ?)",
+                (row["melid"], start, end),
+            ).fetchone()[0]
+            cross += count > 1
     within = len(positive) - cross
     fig, ax = plt.subplots(figsize=(6.0, 4.0), constrained_layout=True)
     bars = ax.bar(["u jednoj WJD frazi", "preko WJD granice"], [within, cross], color=["#3b82a0", "#d28145"])
     ax.bar_label(bars, padding=3, fontsize=12)
     ax.set_ylim(0, max(within, cross) + 4)
     ax.set_ylabel("broj potvrdenih anotacija")
-    ax.set_title("Obuhvat WJD fraze u pilot anotacijama (n = %d)" % len(positive))
+    ax.set_title("Obuhvat WJD fraze u potvrdjenim anotacijama (n = %d)" % len(positive))
     ax.text(0.5, -0.22, "Anotacije se mogu preklapati; stubovi nisu broj nezavisnih dogadaja.",
             transform=ax.transAxes, ha="center", fontsize=8)
     path = FIGURE_DIR / "figure_1_annotation_scope.png"
