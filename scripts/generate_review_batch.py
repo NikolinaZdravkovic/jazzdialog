@@ -35,7 +35,7 @@ MAX_RATIO = 2.0
 # Kandidat sa prakticno nultim DTW-om najcesce je klizajuci isecek jednog
 # ostinata. Za novu grupu za pregled ga ne stavljamo na vrh liste. Postojece,
 # rucno potvrdene anotacije se ovim nikad ne menjaju.
-MIN_REVIEW_DTW = 0.25
+MIN_REVIEW_DTW = 0.35
 
 
 def _shape(values):
@@ -69,6 +69,40 @@ def _is_sliding_repetition(call, response):
     return overlap >= 4
 
 
+def _longest_common_run(first, second):
+    """Duzina najduzeg tacno zajednickog uzastopnog pitch motiva."""
+    previous = [0] * (len(second) + 1)
+    best = 0
+    for value in first:
+        current = [0]
+        for index, other in enumerate(second, start=1):
+            length = previous[index - 1] + 1 if value == other else 0
+            current.append(length)
+            best = max(best, length)
+        previous = current
+    return best
+
+
+def _has_dominant_shared_motif(call, response):
+    """Blokiraj kandidate gde je gotovo ceo response ista kopija call motiva."""
+    return _longest_common_run(call, response) / min(len(call), len(response)) >= 0.8
+
+
+def _has_short_interval_loop(values):
+    """Prepoznaj ostinato i kada su pitch vrednosti transponovano pomerene."""
+    intervals = [second - first for first, second in zip(values, values[1:])]
+    if len(intervals) < 6:
+        return False
+    for period in range(1, min(4, len(intervals) // 3) + 1):
+        matches = sum(
+            intervals[index] == intervals[index - period]
+            for index in range(period, len(intervals))
+        )
+        if matches / (len(intervals) - period) >= 0.8:
+            return True
+    return False
+
+
 def _candidate_rows(conn, melids):
     """Generisi susedne podsegmente unutar WJD fraza, bez pisanja fajlova."""
     for melid, title, performer in conn.execute(
@@ -99,7 +133,15 @@ def _candidate_rows(conn, melids):
                             continue
                         response = phrase[split:response_end]
                         if (_is_repetitive_loop_candidate(call, response)
-                                or _is_sliding_repetition(call, response)):
+                                or _is_sliding_repetition(call, response)
+                                or _has_dominant_shared_motif(call, response)
+                                or _has_short_interval_loop(call)
+                                or _has_short_interval_loop(response)):
+                            continue
+                        # Pet nota ostaje dozvoljeno samo kada je druga strana
+                        # duza; 5 prema 5 je u dosadasnjem pregledu pretezno
+                        # davao premalo muzicke informacije.
+                        if min(call_len, response_len) == 5 and max(call_len, response_len) < 8:
                             continue
                         pitch_dtw, shape_dtw = _score(call, response)
                         if pitch_dtw < MIN_REVIEW_DTW:
