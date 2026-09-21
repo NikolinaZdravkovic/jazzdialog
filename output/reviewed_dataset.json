@@ -2,7 +2,7 @@
   "schema_version": 1,
   "status": "pilot_manual_annotations",
   "source_csv": "output/wjd_phrase_call_response.csv",
-  "source_sha256": "bb40d90ee1302f61c17fc387d949993e568cc639c423537995ae25cc63283a37",
+  "source_sha256": "7fec3202bee0dd707f8a559ea12b2d28cd0f1d8a1d1d9f71a5935170f25574ef",
   "note_indices": "zero-based within solo; end exclusive",
   "time_units": "seconds from solo origin",
   "annotation_count": 51,
