@@ -264,11 +264,19 @@ def main():
 
     with REVIEW_HISTORY.open(encoding="utf-8-sig", newline="") as stream:
         history = list(csv.DictReader(stream))
+    # Isti apsolutni isečak može ranije da je ušao kroz drugi generator
+    # (npr. kroz pretragu WJD fraza, a ne kao MLU kandidat). Za sledeći
+    # pregled ga ne nudimo ponovo: korisnica je taj tačan call/response
+    # već čula i ocenila. Ne ograničavamo ovo po ``candidate_source``.
     excluded_keys = {
         (str(row["melid"]), int(row["call_start_solo"]), int(row["split_point_solo"]),
          int(row["response_end_solo_inclusive"]) + 1)
         for row in history
-        if row.get("candidate_source") == "wjd_mlu_back_reference_v1"
+        if row.get("validnost", "").strip().upper() in {"DA", "NE"}
+        and row.get("melid")
+        and row.get("call_start_solo")
+        and row.get("split_point_solo")
+        and row.get("response_end_solo_inclusive")
     }
     conn = connect_db(str(DB_PATH))
     try:
