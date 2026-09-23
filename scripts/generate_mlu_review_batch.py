@@ -32,6 +32,7 @@ DB_PATH = ROOT / "data_midi" / "wjazzd.db"
 OUTPUT_CSV = ROOT / "output" / "mlu_review_batch.csv"
 AUTO_OUTPUT_CSV = ROOT / "output" / "automatic_high_confidence_candidates.csv"
 EXCERPT_DIR = ROOT / "output" / "mlu_review_midis"
+AUTO_EXCERPT_DIR = ROOT / "output" / "automatic_high_confidence_midis"
 REVIEW_HISTORY = ROOT / "output" / "wjd_phrase_call_response.csv"
 MIN_NOTES = 7
 MAX_NOTES = 20
@@ -380,7 +381,8 @@ def main():
                 "phrase_end_index_inclusive": row["response_end_solo_inclusive"],
             })
             if not args.no_midi:
-                row["excerpt_midi"] = str(_write_excerpt_midi(events, row, EXCERPT_DIR))
+                excerpt_dir = AUTO_EXCERPT_DIR if args.auto_high_confidence else EXCERPT_DIR
+                row["excerpt_midi"] = str(_write_excerpt_midi(events, row, excerpt_dir))
             chosen.append(row)
             used_solos.add(row["melid"])
             if len(chosen) >= args.limit:
@@ -400,7 +402,7 @@ def main():
     print(f"MLU kandidata posle ogranicenja: {len(candidates)}; {kind}: {len(chosen)}")
     print(f"CSV: {output_csv}")
     if not args.no_midi:
-        print(f"MIDI: {EXCERPT_DIR}")
+        print(f"MIDI: {AUTO_EXCERPT_DIR if args.auto_high_confidence else EXCERPT_DIR}")
 
 
 if __name__ == "__main__":
