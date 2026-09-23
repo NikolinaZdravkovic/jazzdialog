@@ -46,6 +46,10 @@ MIN_REVIEW_DTW = 0.30
 # potvrdenog skupa.
 MIN_DURATION_RATIO = 0.90
 MAX_NOTE_DENSITY = 5.0
+# Potpuno prepisivanje vecine kraceg segmenta nije dijalog nego motiv koji se
+# ponavlja. Ovaj prag sledi korisnicke odbacene primere; ne povecava prijavljenu
+# validacionu preciznost, vec uklanja ocigledne skoro-iste kopije.
+MAX_SHARED_EXACT_MOTIF_FRACTION = 0.65
 
 
 def _relation(label):
@@ -178,9 +182,13 @@ def _temporal_features(events, row):
 def _passes_high_confidence_gate(events, row):
     """Konzervativni vremenski filter, validiran na rucnim MLU oznakama."""
     features = _temporal_features(events, row)
+    features["shared_exact_motif_fraction"] = _longest_common_fraction(
+        row["call_pitches"], row["response_pitches"]
+    )
     return (
         features["duration_ratio"] >= MIN_DURATION_RATIO
         and features["max_note_density"] <= MAX_NOTE_DENSITY
+        and features["shared_exact_motif_fraction"] <= MAX_SHARED_EXACT_MOTIF_FRACTION
     ), features
 
 
