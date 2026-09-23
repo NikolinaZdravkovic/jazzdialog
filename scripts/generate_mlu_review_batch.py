@@ -287,7 +287,15 @@ def main():
             row["review_rank"] = len(chosen) + 1
             # _write_excerpt_midi koristi ova polja samo za stabilno ime fajla.
             row.update({
-                "phrase_value": f"mlu_{row['review_rank']:03d}",
+                # Rank sam nije dovoljan: isti melid moze imati vise review
+                # kandidata sa istim brojem nota i istim split-om. Apsolutne
+                # granice u imenu sprecavaju da korisnica slusa pogresan MIDI
+                # ili da nov batch prepise vec potvrden fajl.
+                "phrase_value": (
+                    f"mlu_{row['review_rank']:03d}_"
+                    f"n{row['call_start_solo']}_s{row['split_point_solo']}_"
+                    f"e{row['response_end_solo_inclusive'] + 1}"
+                ),
                 "call_start_local": 0,
                 "split_point_local": row["call_notes"],
                 "response_end_local_exclusive": row["call_notes"] + row["response_notes"],
