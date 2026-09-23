@@ -30,6 +30,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = ROOT / "data_midi" / "wjazzd.db"
 OUTPUT_CSV = ROOT / "output" / "mlu_review_batch.csv"
+AUTO_OUTPUT_CSV = ROOT / "output" / "automatic_high_confidence_candidates.csv"
 EXCERPT_DIR = ROOT / "output" / "mlu_review_midis"
 REVIEW_HISTORY = ROOT / "output" / "wjd_phrase_call_response.csv"
 MIN_NOTES = 7
@@ -37,6 +38,14 @@ MAX_NOTES = 20
 MIN_RATIO = 0.5
 MAX_RATIO = 2.0
 MIN_REVIEW_DTW = 0.30
+
+# Ova dva praga nisu birana po novim kandidatima. Na prethodno rucno
+# ocenjenih 100 WJD-MLU kandidata, uz test po principu "ostavi ceo solo
+# van ucenja", njihova kombinacija je dala 9 DA i 2 NE (81.8%). Zato se
+# koriste samo za *konzervativne automatske predloge*, odvojene od rucno
+# potvrdenog skupa.
+MIN_DURATION_RATIO = 0.90
+MAX_NOTE_DENSITY = 5.0
 
 
 def _relation(label):
@@ -140,6 +149,41 @@ def _is_excluded_category(label):
     return any(category in lowered for category in ("rhythm", "expressive", "void", "fragment"))
 
 
+def _temporal_features(events, row):
+    """Vrati trajanja segmenata i njihovu najveću gustinu nota.
+
+    ``get_melody_events`` vraca ``(eventid, onset, pitch, duration)``.
+    Trajanje obuhvata poslednju notu, zato nije isto sto i razlika dva
+    pocetka. Time kratke, brze MLU ideje ne prolaze kao dug call-response.
+    """
+    call = events[row["call_start_solo"] : row["split_point_solo"]]
+    response = events[row["split_point_solo"] : row["response_end_solo_inclusive"] + 1]
+    if not call or not response:
+        raise ValueError("Prazan call ili response")
+
+    def span(notes):
+        return notes[-1][1] + notes[-1][3] - notes[0][1]
+
+    call_seconds, response_seconds = span(call), span(response)
+    if call_seconds <= 0 or response_seconds <= 0:
+        raise ValueError("Nedefinisano trajanje segmenta")
+    return {
+        "call_seconds": call_seconds,
+        "response_seconds": response_seconds,
+        "duration_ratio": min(call_seconds, response_seconds) / max(call_seconds, response_seconds),
+        "max_note_density": max(len(call) / call_seconds, len(response) / response_seconds),
+    }
+
+
+def _passes_high_confidence_gate(events, row):
+    """Konzervativni vremenski filter, validiran na rucnim MLU oznakama."""
+    features = _temporal_features(events, row)
+    return (
+        features["duration_ratio"] >= MIN_DURATION_RATIO
+        and features["max_note_density"] <= MAX_NOTE_DENSITY
+    ), features
+
+
 def _all_rows(conn, excluded_keys, max_dtw=None, variation_only=False):
     solos = conn.execute(
         "SELECT melid, title, performer FROM solo_info ORDER BY melid"
@@ -231,6 +275,13 @@ def main():
         help="rangiraj pomocu malog modela naucenog samo iz rucnih MLU oznaka",
     )
     parser.add_argument(
+        "--auto-high-confidence", action="store_true",
+        help=(
+            "izvezi samo konzervativne automatske predloge u "
+            "automatic_high_confidence_candidates.csv; ne upisuje DA"
+        ),
+    )
+    parser.add_argument(
         "--normalize-existing", action="store_true",
         help="popravi CSV ako je Excel dodao DA/NE kao novu prvu kolonu",
     )
@@ -283,8 +334,18 @@ def main():
         candidates = list(_all_rows(
             conn, excluded_keys, args.max_dtw, args.variation_only
         ))
+        if args.auto_high_confidence:
+            filtered = []
+            for row, events in candidates:
+                passes, features = _passes_high_confidence_gate(events, row)
+                if not passes:
+                    continue
+                row.update({key: round(value, 6) for key, value in features.items()})
+                row["automatski_status"] = "VISOKO_POUZDAN_PREDLOG"
+                filtered.append((row, events))
+            candidates = filtered
         chosen, used_solos = [], set()
-        model = _fit_review_ranker(history) if args.rank_model else None
+        model = _fit_review_ranker(history) if args.rank_model and not args.auto_high_confidence else None
         for row, events in sorted(
             candidates,
             key=lambda item: (-_rank_probability(item[0], model), _priority(item[0]))
@@ -319,15 +380,17 @@ def main():
     finally:
         conn.close()
 
-    OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
+    output_csv = AUTO_OUTPUT_CSV if args.auto_high_confidence else OUTPUT_CSV
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
     fields = (["validnost"] + [field for field in chosen[0] if field != "validnost"]
               if chosen else ["validnost", "napomena"])
-    with OUTPUT_CSV.open("w", encoding="utf-8-sig", newline="") as stream:
+    with output_csv.open("w", encoding="utf-8-sig", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields)
         writer.writeheader()
         writer.writerows(chosen)
-    print(f"MLU kandidata posle ogranicenja: {len(candidates)}; za pregled: {len(chosen)}")
-    print(f"CSV: {OUTPUT_CSV}")
+    kind = "automatskih predloga" if args.auto_high_confidence else "za pregled"
+    print(f"MLU kandidata posle ogranicenja: {len(candidates)}; {kind}: {len(chosen)}")
+    print(f"CSV: {output_csv}")
     if not args.no_midi:
         print(f"MIDI: {EXCERPT_DIR}")
 
