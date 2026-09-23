@@ -11,8 +11,11 @@ Primer:
 
 import argparse
 import csv
+import json
 import re
 from pathlib import Path
+
+import numpy as np
 
 try:
     from .extract_wjd_phrases import connect_db, get_melody_events
@@ -56,13 +59,88 @@ def _shape(values):
     return [value - values[0] for value in values]
 
 
+def _longest_common_fraction(first, second):
+    """Udeo kraceg segmenta u najduzem zajednickom uzastopnom motivu."""
+    previous = [0] * (len(second) + 1)
+    best = 0
+    for value in first:
+        current = [0]
+        for index, other in enumerate(second, start=1):
+            length = previous[index - 1] + 1 if value == other else 0
+            current.append(length)
+            best = max(best, length)
+        previous = current
+    return best / min(len(first), len(second))
+
+
+def _max_pitch_repeat(values):
+    return max(values.count(value) for value in set(values)) / len(values)
+
+
+def _review_features(call, response, pitch_dtw, shape_dtw):
+    """Mali, objasnjivi skup osobina za redosled ljudskog pregleda."""
+    return np.asarray([
+        pitch_dtw,
+        shape_dtw,
+        len(call),
+        len(response),
+        abs(len(call) - len(response)) / (len(call) + len(response)),
+        _longest_common_fraction(call, response),
+        _max_pitch_repeat(call),
+        _max_pitch_repeat(response),
+        len(set(call)) / len(call),
+        len(set(response)) / len(response),
+    ], dtype=float)
+
+
+def _fit_review_ranker(history):
+    """Nauci samo redosled iz rucno ocenjenih WJD-MLU kandidata.
+
+    Model je regularizovana logisticka regresija implementirana ovde da tok ne
+    zavisi od scikit-learn-a. Ne odlucuje DA/NE i ne menja postojece oznake.
+    """
+    examples = [row for row in history
+                if row.get("candidate_source") == "wjd_mlu_back_reference_v1"
+                and row.get("validnost", "").strip().upper() in {"DA", "NE"}]
+    if len(examples) < 20:
+        raise ValueError("Nema dovoljno rucno ocenjenih MLU primera za ranker.")
+    features, labels = [], []
+    for row in examples:
+        call = [float(value) for value in json.loads(row["call_pitches"])]
+        response = [float(value) for value in json.loads(row["response_pitches"])]
+        features.append(_review_features(
+            call, response, float(row["pitch_dtw"]), float(row["shape_dtw"])
+        ))
+        labels.append(row["validnost"].strip().upper() == "DA")
+    matrix = np.asarray(features)
+    target = np.asarray(labels, dtype=float)
+    mean, std = matrix.mean(axis=0), matrix.std(axis=0)
+    std[std < 1e-9] = 1.0
+    matrix = np.column_stack([np.ones(len(matrix)), (matrix - mean) / std])
+    weights = np.zeros(matrix.shape[1])
+    for _ in range(2500):
+        probability = 1 / (1 + np.exp(-np.clip(matrix @ weights, -25, 25)))
+        gradient = matrix.T @ (probability - target) / len(matrix)
+        gradient[1:] += 0.02 * weights[1:]
+        weights -= 0.08 * gradient
+    return weights, mean, std
+
+
+def _rank_probability(row, model):
+    weights, mean, std = model
+    call, response = row["call_pitches"], row["response_pitches"]
+    vector = _review_features(call, response, row["pitch_dtw"], row["shape_dtw"])
+    value = np.r_[1.0, (vector - mean) / std] @ weights
+    return float(1 / (1 + np.exp(-np.clip(value, -25, 25))))
+
+
 def _is_excluded_category(label):
     """Prvi batch je odbacio MLU ritma i ekspresivnog gesta kao CR parove."""
     lowered = str(label).lower()
     return any(category in lowered for category in ("rhythm", "expressive", "void", "fragment"))
 
 
-def _all_rows(conn, excluded_keys, max_dtw=None):
+def _all_rows(conn, excluded_keys, max_dtw=None, variation_only=False):
     solos = conn.execute(
         "SELECT melid, title, performer FROM solo_info ORDER BY melid"
     ).fetchall()
@@ -76,6 +154,8 @@ def _all_rows(conn, excluded_keys, max_dtw=None):
         for index, (response_start, response_end, label) in enumerate(ideas):
             kind = _relation(str(label))
             if kind is None or index == 0:
+                continue
+            if variation_only and kind != "variation":
                 continue
             call_start, call_end, call_label = ideas[index - 1]
             call = pitches[call_start : call_end + 1]
@@ -143,6 +223,14 @@ def main():
         help="gornja granica pitch-DTW-a samo za redosled sledeceg review batcha",
     )
     parser.add_argument(
+        "--variation-only", action="store_true",
+        help="uzmi samo # varijacije, isti tip na kome imamo rucne oznake",
+    )
+    parser.add_argument(
+        "--rank-model", action="store_true",
+        help="rangiraj pomocu malog modela naucenog samo iz rucnih MLU oznaka",
+    )
+    parser.add_argument(
         "--normalize-existing", action="store_true",
         help="popravi CSV ako je Excel dodao DA/NE kao novu prvu kolonu",
     )
@@ -184,9 +272,16 @@ def main():
     }
     conn = connect_db(str(DB_PATH))
     try:
-        candidates = list(_all_rows(conn, excluded_keys, args.max_dtw))
+        candidates = list(_all_rows(
+            conn, excluded_keys, args.max_dtw, args.variation_only
+        ))
         chosen, used_solos = [], set()
-        for row, events in sorted(candidates, key=lambda item: _priority(item[0])):
+        model = _fit_review_ranker(history) if args.rank_model else None
+        for row, events in sorted(
+            candidates,
+            key=lambda item: (-_rank_probability(item[0], model), _priority(item[0]))
+            if model is not None else _priority(item[0]),
+        ):
             if row["melid"] in used_solos:
                 continue
             row["review_rank"] = len(chosen) + 1
