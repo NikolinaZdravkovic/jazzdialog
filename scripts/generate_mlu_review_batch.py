@@ -37,6 +37,10 @@ AUTO_EXCERPT_DIR = ROOT / "output" / "automatic_high_confidence_midis"
 # MLU batch koji korisnica eventualno jos proverava.
 MELODY_OUTPUT_CSV = ROOT / "output" / "melody_link_review_batch.csv"
 MELODY_EXCERPT_DIR = ROOT / "output" / "melody_link_review_midis"
+# Jednokratni, ograniceni batch za brzo prikupljanje jos rucno potvrdjenih
+# primera. Ostaje odvojen od standardnog review reda.
+HARVEST_OUTPUT_CSV = ROOT / "output" / "rapid_harvest_review_batch.csv"
+HARVEST_EXCERPT_DIR = ROOT / "output" / "rapid_harvest_review_midis"
 REVIEW_HISTORY = ROOT / "output" / "wjd_phrase_call_response.csv"
 MIN_NOTES = 7
 MAX_NOTES = 20
@@ -173,6 +177,33 @@ def _is_melody_link(row):
         str(row["call_idea_label"]).strip().lower() == "melody"
         and str(row["response_idea_label"]).strip().lower() == "#melody"
     )
+
+
+def _rapid_harvest_tier(row):
+    """Vrati strogo unapred odredjeni tier za ubrzani rucni pregled.
+
+    Pravila su izvedena samo iz vec rucno oznacenih WJD IDEA parova:
+    ``#lick -> #lick`` sa skoro jednakim stvarnim trajanjem, potom nekoliko
+    istorijski poznatih tipova ideja. To je strategija *prikupljanja* za
+    rucnu proveru, ne klasifikator i ne znaci da je red automatski ``DA``.
+    """
+    call = str(row["call_idea_label"]).strip().lower()
+    response = str(row["response_idea_label"]).strip().lower()
+    duration_ratio = float(row.get("duration_ratio", 0))
+
+    if call == "#lick" and response == "#lick" and duration_ratio >= 0.90:
+        return "A: #lick -> #lick, uravnotezeno trajanje"
+    if call == "#melody" and response == "#melody":
+        return "A: #melody -> #melody"
+    if call == "#lick" and response == "#-lick":
+        return "B: #lick -> #-lick"
+    if call == "#lick_blues" and response == "#lick_blues":
+        return "B: #lick_blues -> #lick_blues"
+    if call == "lick_blues" and response == "#lick_blues":
+        return "B: lick_blues -> #lick_blues"
+    if call == "lick" and response == "#+lick":
+        return "C: lick -> #+lick"
+    return None
 
 
 def _temporal_features(events, row):
@@ -333,13 +364,23 @@ def main():
         ),
     )
     parser.add_argument(
+        "--rapid-harvest", action="store_true",
+        help=(
+            "izvezi ogranicen, raznovrstan batch iz istorijski korisnih WJD "
+            "IDEA tipova; svi redovi i dalje zahtevaju rucnu DA/NE proveru"
+        ),
+    )
+    parser.add_argument(
         "--normalize-existing", action="store_true",
         help="popravi CSV ako je Excel dodao DA/NE kao novu prvu kolonu",
     )
     args = parser.parse_args()
 
-    if args.melody_links and (args.auto_high_confidence or args.rank_model):
-        parser.error("--melody-links se ne kombinuje sa --auto-high-confidence ni --rank-model")
+    special_modes = sum((args.melody_links, args.rapid_harvest, args.auto_high_confidence))
+    if special_modes > 1:
+        parser.error("izaberi samo jedan od --melody-links, --rapid-harvest i --auto-high-confidence")
+    if (args.melody_links or args.rapid_harvest) and args.rank_model:
+        parser.error("--rank-model se ne kombinuje sa --melody-links ni --rapid-harvest")
 
     if args.normalize_existing:
         with OUTPUT_CSV.open(encoding="utf-8-sig", newline="") as stream:
@@ -419,17 +460,39 @@ def main():
                 )
                 row["automatski_status"] = "ZA_RUCNI_PREGLED_MELODY_LINK"
 
+        if args.rapid_harvest:
+            harvested = []
+            for row, events in candidates:
+                tier = _rapid_harvest_tier(row)
+                if tier is None:
+                    continue
+                row["selection_tier"] = tier
+                row["candidate_source"] = "wjd_mlu_rapid_harvest_v1"
+                row["decision_reason"] = (
+                    "Ograniceni WJD IDEA tip za ubrzani rucni pregled; "
+                    "nije automatska DA odluka"
+                )
+                row["automatski_status"] = "ZA_RUCNI_PREGLED_RAPID_HARVEST"
+                harvested.append((row, events))
+            candidates = harvested
+
         chosen, used_solos = [], set()
         model = _fit_review_ranker(history) if args.rank_model and not args.auto_high_confidence else None
-        for row, events in sorted(
-            candidates,
-            key=lambda item: (-_rank_probability(item[0], model), _priority(item[0]))
-            if model is not None else _priority(item[0]),
-        ):
+        def sort_key(item):
+            row = item[0]
+            if args.rapid_harvest:
+                # Slovo A/B/C je namerna unapred definisana jacina dokaza,
+                # a DTW sluzi samo kao stabilan red unutar istog tier-a.
+                return (row["selection_tier"][0], _priority(row))
+            if model is not None:
+                return (-_rank_probability(row, model), _priority(row))
+            return _priority(row)
+
+        for row, events in sorted(candidates, key=sort_key):
             # U sirokom batchu jedna pesma daje najvise jedan kandidat da
             # pregled ne bi preplavila. Melody-link batch je namerno veoma
             # mali, pa cuvamo sve razlicite anotirane veze, i iz iste pesme.
-            if not args.melody_links and row["melid"] in used_solos:
+            if not (args.melody_links or args.rapid_harvest) and row["melid"] in used_solos:
                 continue
             row["review_rank"] = len(chosen) + 1
             # _write_excerpt_midi koristi ova polja samo za stabilno ime fajla.
@@ -452,12 +515,13 @@ def main():
             if not args.no_midi:
                 excerpt_dir = (
                     MELODY_EXCERPT_DIR if args.melody_links
+                    else HARVEST_EXCERPT_DIR if args.rapid_harvest
                     else AUTO_EXCERPT_DIR if args.auto_high_confidence
                     else EXCERPT_DIR
                 )
                 row["excerpt_midi"] = str(_write_excerpt_midi(events, row, excerpt_dir))
             chosen.append(row)
-            if not args.melody_links:
+            if not (args.melody_links or args.rapid_harvest):
                 used_solos.add(row["melid"])
             if len(chosen) >= args.limit:
                 break
@@ -466,6 +530,7 @@ def main():
 
     output_csv = (
         MELODY_OUTPUT_CSV if args.melody_links
+        else HARVEST_OUTPUT_CSV if args.rapid_harvest
         else AUTO_OUTPUT_CSV if args.auto_high_confidence
         else OUTPUT_CSV
     )
@@ -478,6 +543,7 @@ def main():
         writer.writerows(chosen)
     kind = (
         "melody-link kandidata za pregled" if args.melody_links
+        else "rapid-harvest kandidata za pregled" if args.rapid_harvest
         else "automatskih predloga" if args.auto_high_confidence
         else "za pregled"
     )
@@ -486,6 +552,7 @@ def main():
     if not args.no_midi:
         midi_dir = (
             MELODY_EXCERPT_DIR if args.melody_links
+            else HARVEST_EXCERPT_DIR if args.rapid_harvest
             else AUTO_EXCERPT_DIR if args.auto_high_confidence
             else EXCERPT_DIR
         )
