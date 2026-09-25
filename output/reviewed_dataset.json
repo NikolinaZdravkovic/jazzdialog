@@ -2,11 +2,11 @@
   "schema_version": 1,
   "status": "pilot_manual_annotations",
   "source_csv": "output/wjd_phrase_call_response.csv",
-  "source_sha256": "67103f43bc29a172e983aba394768b50bda9526cda744e938a9f2fd6096e591d",
+  "source_sha256": "5b531752daa676d587e8530506acb40278114ac5cb980481b0b53e9154cd322b",
   "note_indices": "zero-based within solo; end exclusive",
   "time_units": "seconds from solo origin",
-  "annotation_count": 61,
-  "annotations_needing_overlap_review": 7,
+  "annotation_count": 72,
+  "annotations_needing_overlap_review": 11,
   "validation": "Pitch sequences and CALL/RESPONSE MIDI tracks checked against WJD; musical validity supplied by human DA labels",
   "records": [
     {
@@ -6571,7 +6571,9 @@
         ]
       },
       "midi": "output/mlu_review_midis/melid_124_phrase_mlu_015_split_7.mid",
-      "overlapping_ids": []
+      "overlapping_ids": [
+        "wjd:124:276:287:298"
+      ]
     },
     {
       "id": "wjd:225:205:213:229",
@@ -7702,7 +7704,9 @@
         ]
       },
       "midi": "output/mlu_review_midis/melid_426_phrase_mlu_012_split_7.mid",
-      "overlapping_ids": []
+      "overlapping_ids": [
+        "wjd:426:126:134:143"
+      ]
     },
     {
       "id": "wjd:409:0:12:27",
@@ -8646,6 +8650,1422 @@
         ]
       },
       "midi": "output/mlu_review_midis/melid_297_phrase_mlu_015_split_10.mid",
+      "overlapping_ids": []
+    },
+    {
+      "id": "wjd:124:276:287:298",
+      "melid": 124,
+      "title": "Society Red",
+      "performer": "Dexter Gordon",
+      "phrase_value": "MLU:#lick_blues->#lick_blues",
+      "evaluation_group": "wjd-solo:124",
+      "label": "DA",
+      "candidate_source": "wjd_mlu_back_reference_v1",
+      "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 276,
+        "phrase_end_index_inclusive": 297,
+        "split_point_local": 11
+      },
+      "call": {
+        "start_note": 276,
+        "end_note_exclusive": 287,
+        "notes": [
+          {
+            "pitch": 68,
+            "onset_seconds": 71.48775510204082,
+            "duration_seconds": 0.1836734693877551
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 71.70816326530613,
+            "duration_seconds": 0.13877551020408163
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 71.95102040816326,
+            "duration_seconds": 0.26326530612244897
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 72.2358276643991,
+            "duration_seconds": 0.2438095238095238
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 72.67142857142858,
+            "duration_seconds": 0.1673469387755102
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 72.98163265306123,
+            "duration_seconds": 0.15306122448979592
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 73.26476190476191,
+            "duration_seconds": 0.07546485260770976
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 73.35038548752834,
+            "duration_seconds": 0.3657142857142857
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 73.75102040816327,
+            "duration_seconds": 0.15510204081632653
+          },
+          {
+            "pitch": 63,
+            "onset_seconds": 73.92244897959183,
+            "duration_seconds": 0.10408163265306122
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 74.08036281179139,
+            "duration_seconds": 0.4092517006802721
+          }
+        ]
+      },
+      "response": {
+        "start_note": 287,
+        "end_note_exclusive": 298,
+        "notes": [
+          {
+            "pitch": 68,
+            "onset_seconds": 75.61632653061224,
+            "duration_seconds": 0.2163265306122449
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 75.85306122448979,
+            "duration_seconds": 0.2163265306122497
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 76.06938775510204,
+            "duration_seconds": 0.05102040816326531
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 76.12662131519275,
+            "duration_seconds": 0.12448979591836734
+          },
+          {
+            "pitch": 76,
+            "onset_seconds": 76.26448979591837,
+            "duration_seconds": 0.06022675736961451
+          },
+          {
+            "pitch": 77,
+            "onset_seconds": 76.33560090702947,
+            "duration_seconds": 1.4251247165532879
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 77.84897959183674,
+            "duration_seconds": 0.08571428571428572
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 77.94081632653061,
+            "duration_seconds": 0.12755102040816327
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 78.11428571428571,
+            "duration_seconds": 0.17551020408163265
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 78.3061224489796,
+            "duration_seconds": 0.1346938775510204
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 78.48054421768707,
+            "duration_seconds": 0.32798185941043084
+          }
+        ]
+      },
+      "midi": "output/automatic_high_confidence_midis/melid_124_phrase_mlu_001_n276_s287_e298_split_11.mid",
+      "overlapping_ids": [
+        "wjd:124:269:276:287"
+      ]
+    },
+    {
+      "id": "wjd:313:21:28:35",
+      "melid": 313,
+      "title": "Blues by Five",
+      "performer": "Miles Davis",
+      "phrase_value": "MLU:melody->#melody",
+      "evaluation_group": "wjd-solo:313",
+      "label": "DA",
+      "candidate_source": "wjd_mlu_back_reference_v1",
+      "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 21,
+        "phrase_end_index_inclusive": 34,
+        "split_point_local": 7
+      },
+      "call": {
+        "start_note": 21,
+        "end_note_exclusive": 28,
+        "notes": [
+          {
+            "pitch": 73,
+            "onset_seconds": 12.813061224489797,
+            "duration_seconds": 0.12335600907029479
+          },
+          {
+            "pitch": 74,
+            "onset_seconds": 12.967845804988663,
+            "duration_seconds": 0.1082766439909297
+          },
+          {
+            "pitch": 73,
+            "onset_seconds": 13.145351473922902,
+            "duration_seconds": 0.08619047619047619
+          },
+          {
+            "pitch": 74,
+            "onset_seconds": 13.239092970521542,
+            "duration_seconds": 0.2283673469387755
+          },
+          {
+            "pitch": 75,
+            "onset_seconds": 13.606893424036281,
+            "duration_seconds": 0.2723809523809524
+          },
+          {
+            "pitch": 72,
+            "onset_seconds": 13.955192743764172,
+            "duration_seconds": 0.28782312925170067
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 14.32938775510204,
+            "duration_seconds": 0.3852607709750567
+          }
+        ]
+      },
+      "response": {
+        "start_note": 28,
+        "end_note_exclusive": 35,
+        "notes": [
+          {
+            "pitch": 72,
+            "onset_seconds": 15.577755102040816,
+            "duration_seconds": 0.15231292517006803
+          },
+          {
+            "pitch": 72,
+            "onset_seconds": 15.902222222222223,
+            "duration_seconds": 0.20938775510204083
+          },
+          {
+            "pitch": 73,
+            "onset_seconds": 16.195918367346938,
+            "duration_seconds": 0.10587301587301587
+          },
+          {
+            "pitch": 74,
+            "onset_seconds": 16.320725623582767,
+            "duration_seconds": 0.20811791383219955
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 16.64278911564626,
+            "duration_seconds": 0.30904761904761907
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 17.001201814058955,
+            "duration_seconds": 0.29904761904761906
+          },
+          {
+            "pitch": 58,
+            "onset_seconds": 17.32002267573696,
+            "duration_seconds": 0.24428571428571427
+          }
+        ]
+      },
+      "midi": "output/automatic_high_confidence_midis/melid_313_phrase_mlu_002_n21_s28_e35_split_7.mid",
+      "overlapping_ids": []
+    },
+    {
+      "id": "wjd:243:29:42:55",
+      "melid": 243,
+      "title": "Blues on Sunday",
+      "performer": "Joshua Redman",
+      "phrase_value": "MLU:#lick->#lick",
+      "evaluation_group": "wjd-solo:243",
+      "label": "DA",
+      "candidate_source": "wjd_mlu_back_reference_v1",
+      "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 29,
+        "phrase_end_index_inclusive": 54,
+        "split_point_local": 13
+      },
+      "call": {
+        "start_note": 29,
+        "end_note_exclusive": 42,
+        "notes": [
+          {
+            "pitch": 51,
+            "onset_seconds": 10.916281179138322,
+            "duration_seconds": 0.10448979591836735
+          },
+          {
+            "pitch": 54,
+            "onset_seconds": 11.04108843537415,
+            "duration_seconds": 0.12770975056689343
+          },
+          {
+            "pitch": 56,
+            "onset_seconds": 11.209433106575963,
+            "duration_seconds": 0.10158730158730159
+          },
+          {
+            "pitch": 58,
+            "onset_seconds": 11.36907029478458,
+            "duration_seconds": 0.1219047619047619
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 11.586757369614512,
+            "duration_seconds": 0.15383219954648525
+          },
+          {
+            "pitch": 61,
+            "onset_seconds": 11.749297052154194,
+            "duration_seconds": 0.14222222222222222
+          },
+          {
+            "pitch": 58,
+            "onset_seconds": 11.987301587301587,
+            "duration_seconds": 0.22929705215419502
+          },
+          {
+            "pitch": 51,
+            "onset_seconds": 12.257233560090702,
+            "duration_seconds": 0.13931972789115646
+          },
+          {
+            "pitch": 55,
+            "onset_seconds": 12.43718820861678,
+            "duration_seconds": 0.10448979591836735
+          },
+          {
+            "pitch": 56,
+            "onset_seconds": 12.541678004535147,
+            "duration_seconds": 0.2089795918367347
+          },
+          {
+            "pitch": 51,
+            "onset_seconds": 12.77968253968254,
+            "duration_seconds": 0.08707482993197278
+          },
+          {
+            "pitch": 54,
+            "onset_seconds": 12.93641723356009,
+            "duration_seconds": 0.3250793650793651
+          },
+          {
+            "pitch": 51,
+            "onset_seconds": 13.351473922902494,
+            "duration_seconds": 0.24671201814058957
+          }
+        ]
+      },
+      "response": {
+        "start_note": 42,
+        "end_note_exclusive": 55,
+        "notes": [
+          {
+            "pitch": 65,
+            "onset_seconds": 14.70984126984127,
+            "duration_seconds": 0.11900226757369614
+          },
+          {
+            "pitch": 61,
+            "onset_seconds": 14.837551020408164,
+            "duration_seconds": 0.11900226757369614
+          },
+          {
+            "pitch": 63,
+            "onset_seconds": 14.975419501133787,
+            "duration_seconds": 0.19156462585034015
+          },
+          {
+            "pitch": 61,
+            "onset_seconds": 15.206167800453514,
+            "duration_seconds": 0.2583219954648541
+          },
+          {
+            "pitch": 58,
+            "onset_seconds": 15.464489795918368,
+            "duration_seconds": 0.1306122448979592
+          },
+          {
+            "pitch": 51,
+            "onset_seconds": 15.638639455782313,
+            "duration_seconds": 0.24671201814058957
+          },
+          {
+            "pitch": 49,
+            "onset_seconds": 15.920181405895692,
+            "duration_seconds": 0.10158730158730159
+          },
+          {
+            "pitch": 56,
+            "onset_seconds": 16.047891156462587,
+            "duration_seconds": 0.10448979591836735
+          },
+          {
+            "pitch": 57,
+            "onset_seconds": 16.16689342403628,
+            "duration_seconds": 0.17124716553287983
+          },
+          {
+            "pitch": 51,
+            "onset_seconds": 16.416507936507937,
+            "duration_seconds": 0.08707482993197278
+          },
+          {
+            "pitch": 53,
+            "onset_seconds": 16.51809523809524,
+            "duration_seconds": 0.11609977324263039
+          },
+          {
+            "pitch": 54,
+            "onset_seconds": 16.64,
+            "duration_seconds": 0.14512471655328799
+          },
+          {
+            "pitch": 51,
+            "onset_seconds": 16.967981859410433,
+            "duration_seconds": 0.3599092970521542
+          }
+        ]
+      },
+      "midi": "output/automatic_high_confidence_midis/melid_243_phrase_mlu_003_n29_s42_e55_split_13.mid",
+      "overlapping_ids": []
+    },
+    {
+      "id": "wjd:192:104:113:122",
+      "melid": 192,
+      "title": "Crazy Rhythm",
+      "performer": "J.J. Johnson",
+      "phrase_value": "MLU:lick->#lick",
+      "evaluation_group": "wjd-solo:192",
+      "label": "DA",
+      "candidate_source": "wjd_mlu_back_reference_v1",
+      "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 104,
+        "phrase_end_index_inclusive": 121,
+        "split_point_local": 9
+      },
+      "call": {
+        "start_note": 104,
+        "end_note_exclusive": 113,
+        "notes": [
+          {
+            "pitch": 65,
+            "onset_seconds": 28.9,
+            "duration_seconds": 0.36122448979591837
+          },
+          {
+            "pitch": 64,
+            "onset_seconds": 29.29795918367347,
+            "duration_seconds": 0.08979591836734693
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 29.408163265306122,
+            "duration_seconds": 0.10204081632653061
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 29.559183673469388,
+            "duration_seconds": 0.0836734693877551
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 29.928571428571427,
+            "duration_seconds": 0.09387755102040816
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 30.13877551020408,
+            "duration_seconds": 0.09183673469387756
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 30.255102040816325,
+            "duration_seconds": 0.06938775510204082
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 30.587755102040816,
+            "duration_seconds": 0.07959183673469387
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 30.728571428571428,
+            "duration_seconds": 0.1
+          }
+        ]
+      },
+      "response": {
+        "start_note": 113,
+        "end_note_exclusive": 122,
+        "notes": [
+          {
+            "pitch": 69,
+            "onset_seconds": 31.67142857142857,
+            "duration_seconds": 0.09591836734693877
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 31.844897959183672,
+            "duration_seconds": 0.08571428571428572
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 31.992857142857144,
+            "duration_seconds": 0.07551020408163266
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 32.310204081632655,
+            "duration_seconds": 0.11836734693877551
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 32.50816326530612,
+            "duration_seconds": 0.09591836734693877
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 32.65204081632653,
+            "duration_seconds": 0.07346938775510205
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 32.96734693877551,
+            "duration_seconds": 0.1
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 33.11020408163265,
+            "duration_seconds": 0.11224489795918367
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 33.28367346938776,
+            "duration_seconds": 0.39387755102040817
+          }
+        ]
+      },
+      "midi": "output/automatic_high_confidence_midis/melid_192_phrase_mlu_004_n104_s113_e122_split_9.mid",
+      "overlapping_ids": []
+    },
+    {
+      "id": "wjd:84:887:897:908",
+      "melid": 84,
+      "title": "Togo",
+      "performer": "Chris Potter",
+      "phrase_value": "MLU:#51lick->#lick",
+      "evaluation_group": "wjd-solo:84",
+      "label": "DA",
+      "candidate_source": "wjd_mlu_back_reference_v1",
+      "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 887,
+        "phrase_end_index_inclusive": 907,
+        "split_point_local": 10
+      },
+      "call": {
+        "start_note": 887,
+        "end_note_exclusive": 897,
+        "notes": [
+          {
+            "pitch": 81,
+            "onset_seconds": 186.5265306122449,
+            "duration_seconds": 0.363265306122449
+          },
+          {
+            "pitch": 79,
+            "onset_seconds": 186.90204081632652,
+            "duration_seconds": 0.17142857142857143
+          },
+          {
+            "pitch": 58,
+            "onset_seconds": 187.10204081632654,
+            "duration_seconds": 0.11428571428571428
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 187.27755102040817,
+            "duration_seconds": 0.14285714285714285
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 187.534693877551,
+            "duration_seconds": 0.1469387755102041
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 187.83265306122448,
+            "duration_seconds": 0.08979591836734693
+          },
+          {
+            "pitch": 72,
+            "onset_seconds": 187.99591836734695,
+            "duration_seconds": 0.21224489795918366
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 188.21224489795918,
+            "duration_seconds": 0.23673469387755103
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 188.4938775510204,
+            "duration_seconds": 0.363265306122449
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 188.86938775510205,
+            "duration_seconds": 0.17551020408163265
+          }
+        ]
+      },
+      "response": {
+        "start_note": 897,
+        "end_note_exclusive": 908,
+        "notes": [
+          {
+            "pitch": 55,
+            "onset_seconds": 189.71020408163264,
+            "duration_seconds": 0.07755102040816327
+          },
+          {
+            "pitch": 58,
+            "onset_seconds": 189.81632653061226,
+            "duration_seconds": 0.08163265306122448
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 189.9387755102041,
+            "duration_seconds": 0.11836734693877551
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 190.10204081632654,
+            "duration_seconds": 0.1510204081632653
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 190.33061224489796,
+            "duration_seconds": 0.12244897959183673
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 190.51020408163265,
+            "duration_seconds": 0.13877551020408163
+          },
+          {
+            "pitch": 72,
+            "onset_seconds": 190.78367346938776,
+            "duration_seconds": 0.11836734693877551
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 190.99591836734695,
+            "duration_seconds": 0.12244897959183673
+          },
+          {
+            "pitch": 72,
+            "onset_seconds": 191.16326530612244,
+            "duration_seconds": 0.2163265306122449
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 191.41224489795917,
+            "duration_seconds": 0.24081632653061225
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 191.70612244897958,
+            "duration_seconds": 0.4163265306122449
+          }
+        ]
+      },
+      "midi": "output/automatic_high_confidence_midis/melid_84_phrase_mlu_007_n887_s897_e908_split_10.mid",
+      "overlapping_ids": []
+    },
+    {
+      "id": "wjd:265:39:47:56",
+      "melid": 265,
+      "title": "Who's it",
+      "performer": "Kid Ory",
+      "phrase_value": "MLU:theme:t1-4->#melody",
+      "evaluation_group": "wjd-solo:265",
+      "label": "DA",
+      "candidate_source": "wjd_mlu_back_reference_v1",
+      "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 39,
+        "phrase_end_index_inclusive": 55,
+        "split_point_local": 8
+      },
+      "call": {
+        "start_note": 39,
+        "end_note_exclusive": 47,
+        "notes": [
+          {
+            "pitch": 52,
+            "onset_seconds": 20.691836734693876,
+            "duration_seconds": 0.25204081632653064
+          },
+          {
+            "pitch": 53,
+            "onset_seconds": 20.96938775510204,
+            "duration_seconds": 0.24285714285714285
+          },
+          {
+            "pitch": 54,
+            "onset_seconds": 21.230294784580497,
+            "duration_seconds": 0.1785034013605442
+          },
+          {
+            "pitch": 55,
+            "onset_seconds": 21.42331065759637,
+            "duration_seconds": 0.18866213151927438
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 21.71936507936508,
+            "duration_seconds": 0.6530612244897959
+          },
+          {
+            "pitch": 64,
+            "onset_seconds": 22.418866213151926,
+            "duration_seconds": 0.2525170068027211
+          },
+          {
+            "pitch": 56,
+            "onset_seconds": 22.83469387755102,
+            "duration_seconds": 0.1377551020408163
+          },
+          {
+            "pitch": 57,
+            "onset_seconds": 22.990657596371882,
+            "duration_seconds": 1.340952380952381
+          }
+        ]
+      },
+      "response": {
+        "start_note": 47,
+        "end_note_exclusive": 56,
+        "notes": [
+          {
+            "pitch": 53,
+            "onset_seconds": 25.234285714285715,
+            "duration_seconds": 0.24090702947845805
+          },
+          {
+            "pitch": 54,
+            "onset_seconds": 25.50421768707483,
+            "duration_seconds": 0.25541950113378686
+          },
+          {
+            "pitch": 55,
+            "onset_seconds": 25.779954648526076,
+            "duration_seconds": 0.12770975056689343
+          },
+          {
+            "pitch": 56,
+            "onset_seconds": 25.925079365079366,
+            "duration_seconds": 0.22639455782312926
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 26.2356462585034,
+            "duration_seconds": 0.11464852607709751
+          },
+          {
+            "pitch": 64,
+            "onset_seconds": 26.4562358276644,
+            "duration_seconds": 0.28879818594104306
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 26.755192743764173,
+            "duration_seconds": 0.2917006802721088
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 27.17315192743764,
+            "duration_seconds": 0.11029478458049886
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 27.3265306122449,
+            "duration_seconds": 1.2163265306122448
+          }
+        ]
+      },
+      "midi": "output/automatic_high_confidence_midis/melid_265_phrase_mlu_010_n39_s47_e56_split_8.mid",
+      "overlapping_ids": []
+    },
+    {
+      "id": "wjd:426:126:134:143",
+      "melid": 426,
+      "title": "Adam's Apple",
+      "performer": "Wayne Shorter",
+      "phrase_value": "MLU:#lick->#lick",
+      "evaluation_group": "wjd-solo:426",
+      "label": "DA",
+      "candidate_source": "wjd_mlu_back_reference_v1",
+      "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 126,
+        "phrase_end_index_inclusive": 142,
+        "split_point_local": 8
+      },
+      "call": {
+        "start_note": 126,
+        "end_note_exclusive": 134,
+        "notes": [
+          {
+            "pitch": 63,
+            "onset_seconds": 41.97877551020408,
+            "duration_seconds": 0.07473922902494332
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 42.060204081632655,
+            "duration_seconds": 0.1377551020408163
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 42.20226757369615,
+            "duration_seconds": 0.1073922902494331
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 42.51428571428571,
+            "duration_seconds": 0.6516099773242631
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 43.17895691609977,
+            "duration_seconds": 0.11900226757369614
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 43.3081179138322,
+            "duration_seconds": 0.1001360544217687
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 43.42131519274376,
+            "duration_seconds": 0.08562358276643992
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 43.656122448979595,
+            "duration_seconds": 0.24183673469387756
+          }
+        ]
+      },
+      "response": {
+        "start_note": 134,
+        "end_note_exclusive": 143,
+        "notes": [
+          {
+            "pitch": 63,
+            "onset_seconds": 44.72453514739229,
+            "duration_seconds": 0.1182766439909297
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 44.853696145124715,
+            "duration_seconds": 0.08707482993197278
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 44.96122448979592,
+            "duration_seconds": 0.09183673469387756
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 45.2281179138322,
+            "duration_seconds": 0.8315646258503402
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 46.09451247165533,
+            "duration_seconds": 0.14222222222222222
+          },
+          {
+            "pitch": 64,
+            "onset_seconds": 46.23979591836735,
+            "duration_seconds": 0.05714285714285714
+          },
+          {
+            "pitch": 63,
+            "onset_seconds": 46.30714285714286,
+            "duration_seconds": 0.03979591836734694
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 46.361224489795916,
+            "duration_seconds": 0.07244897959183673
+          },
+          {
+            "pitch": 59,
+            "onset_seconds": 46.45816326530612,
+            "duration_seconds": 0.12857142857142856
+          }
+        ]
+      },
+      "midi": "output/automatic_high_confidence_midis/melid_426_phrase_mlu_012_n126_s134_e143_split_8.mid",
+      "overlapping_ids": [
+        "wjd:426:119:126:134"
+      ]
+    },
+    {
+      "id": "wjd:50:512:519:527",
+      "melid": 50,
+      "title": "This Here",
+      "performer": "Cannonball Adderley",
+      "phrase_value": "MLU:#lick->#lick",
+      "evaluation_group": "wjd-solo:50",
+      "label": "DA",
+      "candidate_source": "wjd_mlu_back_reference_v1",
+      "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 512,
+        "phrase_end_index_inclusive": 526,
+        "split_point_local": 7
+      },
+      "call": {
+        "start_note": 512,
+        "end_note_exclusive": 519,
+        "notes": [
+          {
+            "pitch": 60,
+            "onset_seconds": 104.50501133786848,
+            "duration_seconds": 0.19736961451247165
+          },
+          {
+            "pitch": 59,
+            "onset_seconds": 104.73360544217687,
+            "duration_seconds": 0.08562358276643992
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 104.8453514739229,
+            "duration_seconds": 0.24961451247165534
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 105.09641723356009,
+            "duration_seconds": 0.07836734693877645
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 105.17478458049887,
+            "duration_seconds": 0.3250793650793651
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 105.53469387755102,
+            "duration_seconds": 0.11609977324263039
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 105.84600907029478,
+            "duration_seconds": 0.23219954648526078
+          }
+        ]
+      },
+      "response": {
+        "start_note": 519,
+        "end_note_exclusive": 527,
+        "notes": [
+          {
+            "pitch": 60,
+            "onset_seconds": 106.56,
+            "duration_seconds": 0.17414965986394557
+          },
+          {
+            "pitch": 58,
+            "onset_seconds": 106.76122448979592,
+            "duration_seconds": 0.06326530612244897
+          },
+          {
+            "pitch": 62,
+            "onset_seconds": 106.84399092970521,
+            "duration_seconds": 0.2612244897959184
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 107.10612244897959,
+            "duration_seconds": 0.12448979591836734
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 107.2390022675737,
+            "duration_seconds": 0.22058956916099773
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 107.58700680272109,
+            "duration_seconds": 0.324988662131517
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 107.91199546485261,
+            "duration_seconds": 0.2438095238095238
+          },
+          {
+            "pitch": 66,
+            "onset_seconds": 108.15600907029479,
+            "duration_seconds": 0.13351473922902493
+          }
+        ]
+      },
+      "midi": "output/automatic_high_confidence_midis/melid_50_phrase_mlu_013_n512_s519_e527_split_7.mid",
+      "overlapping_ids": []
+    },
+    {
+      "id": "wjd:141:0:7:15",
+      "melid": 141,
+      "title": "Cognac Blues",
+      "performer": "Don Byas",
+      "phrase_value": "MLU:lick->#lick",
+      "evaluation_group": "wjd-solo:141",
+      "label": "DA",
+      "candidate_source": "wjd_mlu_back_reference_v1",
+      "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 0,
+        "phrase_end_index_inclusive": 14,
+        "split_point_local": 7
+      },
+      "call": {
+        "start_note": 0,
+        "end_note_exclusive": 7,
+        "notes": [
+          {
+            "pitch": 53,
+            "onset_seconds": 4.818140589569161,
+            "duration_seconds": 0.11029478458049886
+          },
+          {
+            "pitch": 56,
+            "onset_seconds": 4.951655328798186,
+            "duration_seconds": 0.2960544217687075
+          },
+          {
+            "pitch": 58,
+            "onset_seconds": 5.358004535147392,
+            "duration_seconds": 0.16834467120181407
+          },
+          {
+            "pitch": 55,
+            "onset_seconds": 5.5902040816326535,
+            "duration_seconds": 0.08126984126984127
+          },
+          {
+            "pitch": 58,
+            "onset_seconds": 5.723718820861678,
+            "duration_seconds": 0.37732426303854877
+          },
+          {
+            "pitch": 57,
+            "onset_seconds": 6.15328798185941,
+            "duration_seconds": 0.2728344671201814
+          },
+          {
+            "pitch": 53,
+            "onset_seconds": 6.437732426303855,
+            "duration_seconds": 0.06965986394557823
+          }
+        ]
+      },
+      "response": {
+        "start_note": 7,
+        "end_note_exclusive": 15,
+        "notes": [
+          {
+            "pitch": 53,
+            "onset_seconds": 6.925351473922903,
+            "duration_seconds": 0.08126984126984127
+          },
+          {
+            "pitch": 56,
+            "onset_seconds": 7.064671201814059,
+            "duration_seconds": 0.2438095238095238
+          },
+          {
+            "pitch": 58,
+            "onset_seconds": 7.389750566893424,
+            "duration_seconds": 0.23219954648526078
+          },
+          {
+            "pitch": 57,
+            "onset_seconds": 7.627755102040816,
+            "duration_seconds": 0.058049886621315196
+          },
+          {
+            "pitch": 58,
+            "onset_seconds": 7.7090249433106575,
+            "duration_seconds": 0.3831292517006803
+          },
+          {
+            "pitch": 57,
+            "onset_seconds": 8.097959183673469,
+            "duration_seconds": 0.2786394557823129
+          },
+          {
+            "pitch": 60,
+            "onset_seconds": 8.498503401360544,
+            "duration_seconds": 0.13931972789115646
+          },
+          {
+            "pitch": 59,
+            "onset_seconds": 8.643628117913833,
+            "duration_seconds": 0.034829931972789115
+          }
+        ]
+      },
+      "midi": "output/automatic_high_confidence_midis/melid_141_phrase_mlu_014_n0_s7_e15_split_7.mid",
+      "overlapping_ids": []
+    },
+    {
+      "id": "wjd:291:70:81:90",
+      "melid": 291,
+      "title": "Basin Street Blues",
+      "performer": "Louis Armstrong",
+      "phrase_value": "MLU:lick->#lick",
+      "evaluation_group": "wjd-solo:291",
+      "label": "DA",
+      "candidate_source": "wjd_mlu_back_reference_v1",
+      "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 70,
+        "phrase_end_index_inclusive": 89,
+        "split_point_local": 11
+      },
+      "call": {
+        "start_note": 70,
+        "end_note_exclusive": 81,
+        "notes": [
+          {
+            "pitch": 65,
+            "onset_seconds": 21.17514739229025,
+            "duration_seconds": 0.12480725623582767
+          },
+          {
+            "pitch": 64,
+            "onset_seconds": 21.317369614512472,
+            "duration_seconds": 0.11029478458049886
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 21.465396825396827,
+            "duration_seconds": 0.12045351473922902
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 21.61777777777778,
+            "duration_seconds": 0.08562358276643992
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 21.715011337868482,
+            "duration_seconds": 0.1654421768707483
+          },
+          {
+            "pitch": 74,
+            "onset_seconds": 21.903673469387755,
+            "duration_seconds": 0.13931972789115646
+          },
+          {
+            "pitch": 77,
+            "onset_seconds": 22.11120181405896,
+            "duration_seconds": 0.1436734693877551
+          },
+          {
+            "pitch": 81,
+            "onset_seconds": 22.312925170068027,
+            "duration_seconds": 0.16689342403628118
+          },
+          {
+            "pitch": 81,
+            "onset_seconds": 22.649614512471654,
+            "duration_seconds": 0.16399092970521542
+          },
+          {
+            "pitch": 81,
+            "onset_seconds": 22.894875283446712,
+            "duration_seconds": 0.13931972789115646
+          },
+          {
+            "pitch": 74,
+            "onset_seconds": 23.08063492063492,
+            "duration_seconds": 0.34104308390022675
+          }
+        ]
+      },
+      "response": {
+        "start_note": 81,
+        "end_note_exclusive": 90,
+        "notes": [
+          {
+            "pitch": 81,
+            "onset_seconds": 23.7,
+            "duration_seconds": 0.1653061224489796
+          },
+          {
+            "pitch": 74,
+            "onset_seconds": 23.953061224489797,
+            "duration_seconds": 0.13877551020408163
+          },
+          {
+            "pitch": 81,
+            "onset_seconds": 24.23002267573696,
+            "duration_seconds": 0.16253968253968254
+          },
+          {
+            "pitch": 74,
+            "onset_seconds": 24.45206349206349,
+            "duration_seconds": 0.10612244897959183
+          },
+          {
+            "pitch": 82,
+            "onset_seconds": 24.665396825396826,
+            "duration_seconds": 0.15383219954648525
+          },
+          {
+            "pitch": 74,
+            "onset_seconds": 24.887437641723356,
+            "duration_seconds": 0.11319727891156463
+          },
+          {
+            "pitch": 81,
+            "onset_seconds": 25.05578231292517,
+            "duration_seconds": 0.1785034013605442
+          },
+          {
+            "pitch": 81,
+            "onset_seconds": 25.385215419501133,
+            "duration_seconds": 0.17560090702947845
+          },
+          {
+            "pitch": 74,
+            "onset_seconds": 25.682721088435375,
+            "duration_seconds": 0.313469387755102
+          }
+        ]
+      },
+      "midi": "output/automatic_high_confidence_midis/melid_291_phrase_mlu_015_n70_s81_e90_split_11.mid",
+      "overlapping_ids": []
+    },
+    {
+      "id": "wjd:316:241:252:268",
+      "melid": 316,
+      "title": "Eighty-One",
+      "performer": "Miles Davis",
+      "phrase_value": "MLU:melody->#melody",
+      "evaluation_group": "wjd-solo:316",
+      "label": "DA",
+      "candidate_source": "wjd_mlu_back_reference_v1",
+      "manual_boundary_note": "",
+      "preferred_annotation_id": "",
+      "boundary_choice_note": "",
+      "source_key": {
+        "phrase_start_index": 241,
+        "phrase_end_index_inclusive": 267,
+        "split_point_local": 11
+      },
+      "call": {
+        "start_note": 241,
+        "end_note_exclusive": 252,
+        "notes": [
+          {
+            "pitch": 77,
+            "onset_seconds": 87.79591836734694,
+            "duration_seconds": 0.27346938775510204
+          },
+          {
+            "pitch": 79,
+            "onset_seconds": 88.2,
+            "duration_seconds": 0.4122448979591837
+          },
+          {
+            "pitch": 77,
+            "onset_seconds": 88.61224489795919,
+            "duration_seconds": 0.3020408163265306
+          },
+          {
+            "pitch": 75,
+            "onset_seconds": 88.92371882086168,
+            "duration_seconds": 0.5021315192743764
+          },
+          {
+            "pitch": 72,
+            "onset_seconds": 89.44036281179139,
+            "duration_seconds": 0.26412698412698415
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 89.92244897959183,
+            "duration_seconds": 0.19183673469387755
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 90.1253514739229,
+            "duration_seconds": 0.07256235827664399
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 90.21224489795918,
+            "duration_seconds": 0.08163265306122448
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 90.35510204081632,
+            "duration_seconds": 0.2938775510204082
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 90.7871201814059,
+            "duration_seconds": 0.3686167800453515
+          },
+          {
+            "pitch": 67,
+            "onset_seconds": 91.16734693877551,
+            "duration_seconds": 0.17551020408163265
+          }
+        ]
+      },
+      "response": {
+        "start_note": 252,
+        "end_note_exclusive": 268,
+        "notes": [
+          {
+            "pitch": 77,
+            "onset_seconds": 92.0671201814059,
+            "duration_seconds": 0.2815419501133787
+          },
+          {
+            "pitch": 79,
+            "onset_seconds": 92.54285714285714,
+            "duration_seconds": 0.2693877551020408
+          },
+          {
+            "pitch": 77,
+            "onset_seconds": 92.82448979591837,
+            "duration_seconds": 0.1346938775510204
+          },
+          {
+            "pitch": 75,
+            "onset_seconds": 92.96326530612245,
+            "duration_seconds": 0.27755102040816326
+          },
+          {
+            "pitch": 72,
+            "onset_seconds": 93.2530612244898,
+            "duration_seconds": 0.17959183673469387
+          },
+          {
+            "pitch": 65,
+            "onset_seconds": 93.72244897959183,
+            "duration_seconds": 0.22857142857142856
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 94.13469387755102,
+            "duration_seconds": 0.1510204081632653
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 94.4,
+            "duration_seconds": 0.10204081632652162
+          },
+          {
+            "pitch": 69,
+            "onset_seconds": 94.50204081632653,
+            "duration_seconds": 0.14285714285714285
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 94.75510204081633,
+            "duration_seconds": 0.2571428571428571
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 95.03927437641724,
+            "duration_seconds": 0.12770975056689343
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 95.21342403628118,
+            "duration_seconds": 0.24961451247165534
+          },
+          {
+            "pitch": 68,
+            "onset_seconds": 95.53061224489795,
+            "duration_seconds": 0.06938775510204082
+          },
+          {
+            "pitch": 71,
+            "onset_seconds": 95.64081632653061,
+            "duration_seconds": 0.09795918367346938
+          },
+          {
+            "pitch": 70,
+            "onset_seconds": 95.74285714285715,
+            "duration_seconds": 0.11020408163265306
+          },
+          {
+            "pitch": 71,
+            "onset_seconds": 95.86122448979592,
+            "duration_seconds": 0.0653061224489796
+          }
+        ]
+      },
+      "midi": "output/automatic_high_confidence_midis/melid_316_phrase_mlu_026_n241_s252_e268_split_11.mid",
       "overlapping_ids": []
     }
   ]

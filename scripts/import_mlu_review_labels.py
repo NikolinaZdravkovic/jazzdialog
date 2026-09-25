@@ -42,11 +42,15 @@ def _convert(row):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="upisi ocenjene redove u glavni CSV")
+    parser.add_argument(
+        "--input", type=Path, default=SOURCE,
+        help="CSV sa rucno oznacenim MLU kandidatima (podrazumevano: mlu_review_batch.csv)",
+    )
     args = parser.parse_args()
     if not args.apply:
         parser.error("Ovo menja glavni CSV; pokreni sa --apply.")
 
-    with SOURCE.open(encoding="utf-8-sig", newline="") as stream:
+    with args.input.open(encoding="utf-8-sig", newline="") as stream:
         reviewed = [row for row in csv.DictReader(stream)
                     if row.get("validnost", "").strip().upper() in {"DA", "NE"}]
     if not reviewed:

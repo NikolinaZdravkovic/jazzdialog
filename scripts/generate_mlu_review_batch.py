@@ -40,17 +40,20 @@ MIN_RATIO = 0.5
 MAX_RATIO = 2.0
 MIN_REVIEW_DTW = 0.30
 
-# Ova dva praga nisu birana po novim kandidatima. Na prethodno rucno
-# ocenjenih 100 WJD-MLU kandidata, uz test po principu "ostavi ceo solo
-# van ucenja", njihova kombinacija je dala 9 DA i 2 NE (81.8%). Zato se
-# koriste samo za *konzervativne automatske predloge*, odvojene od rucno
-# potvrdenog skupa.
+# Pocetni pilot na istorijskim primerima je izgledao obecavajuce, ali se nije
+# ponovio na sledecoj nezavisnoj turi. Zato ovi pragovi sluze iskljucivo za
+# cuvanje tog eksperimenta; nijedan kandidat nikad ne postaje DA automatski.
 MIN_DURATION_RATIO = 0.90
 MAX_NOTE_DENSITY = 5.0
 # Potpuno prepisivanje vecine kraceg segmenta nije dijalog nego motiv koji se
 # ponavlja. Ovaj prag sledi korisnicke odbacene primere; ne povecava prijavljenu
 # validacionu preciznost, vec uklanja ocigledne skoro-iste kopije.
 MAX_SHARED_EXACT_MOTIF_FRACTION = 0.65
+
+# Za veliku turu za slusanje izbacujemo samo ekstremno kratke/brze ideje.
+# To su ogranicenja citljivosti za ljudski pregled, ne klasifikator DA/NE.
+MIN_REVIEW_SECONDS = 1.0
+MAX_REVIEW_NOTE_DENSITY = 8.0
 
 
 def _relation(label):
@@ -180,8 +183,8 @@ def _temporal_features(events, row):
     }
 
 
-def _passes_high_confidence_gate(events, row):
-    """Konzervativni vremenski filter, validiran na rucnim MLU oznakama."""
+def _passes_strict_time_gate(events, row):
+    """Istorijski strogi vremenski eksperiment; nije automatska odluka."""
     features = _temporal_features(events, row)
     features["shared_exact_motif_fraction"] = _longest_common_fraction(
         row["call_pitches"], row["response_pitches"]
@@ -190,6 +193,15 @@ def _passes_high_confidence_gate(events, row):
         features["duration_ratio"] >= MIN_DURATION_RATIO
         and features["max_note_density"] <= MAX_NOTE_DENSITY
         and features["shared_exact_motif_fraction"] <= MAX_SHARED_EXACT_MOTIF_FRACTION
+    ), features
+
+
+def _passes_review_readability_gate(events, row):
+    """Skloni samo kandidate koje je tesko smisleno preslusati."""
+    features = _temporal_features(events, row)
+    return (
+        min(features["call_seconds"], features["response_seconds"]) >= MIN_REVIEW_SECONDS
+        and features["max_note_density"] <= MAX_REVIEW_NOTE_DENSITY
     ), features
 
 
@@ -229,6 +241,11 @@ def _all_rows(conn, excluded_keys, max_dtw=None, variation_only=False):
             # belezi vezu ideja, ali za nas prvi CR batch to je upravo klasa
             # doslovnih repeticija koju korisnica ne zeli da pregleda.
             if call == response:
+                continue
+            # Ni skoro cela doslovna kopija kraceg segmenta nije koristan CR
+            # kandidat za ovu bazu. Ona je korisnicom dosledno odbacivana kao
+            # ostinato/puko ponavljanje, cak i kada WJD vezu belezi sa #.
+            if _longest_common_fraction(call, response) > MAX_SHARED_EXACT_MOTIF_FRACTION:
                 continue
             if _is_excluded_category(call_label) or _is_excluded_category(label):
                 continue
@@ -286,8 +303,8 @@ def main():
     parser.add_argument(
         "--auto-high-confidence", action="store_true",
         help=(
-            "izvezi samo konzervativne automatske predloge u "
-            "automatic_high_confidence_candidates.csv; ne upisuje DA"
+            "istorijski strogi vremenski eksperiment; ne upisuje DA "
+            "i ne predstavlja se kao pouzdana automatska klasifikacija"
         ),
     )
     parser.add_argument(
@@ -346,13 +363,22 @@ def main():
         if args.auto_high_confidence:
             filtered = []
             for row, events in candidates:
-                passes, features = _passes_high_confidence_gate(events, row)
+                passes, features = _passes_strict_time_gate(events, row)
                 if not passes:
                     continue
                 row.update({key: round(value, 6) for key, value in features.items()})
-                row["automatski_status"] = "VISOKO_POUZDAN_PREDLOG"
+                row["automatski_status"] = "STROGI_VREMENSKI_EKSPERIMENT"
                 filtered.append((row, events))
             candidates = filtered
+        else:
+            readable = []
+            for row, events in candidates:
+                passes, features = _passes_review_readability_gate(events, row)
+                if not passes:
+                    continue
+                row.update({key: round(value, 6) for key, value in features.items()})
+                readable.append((row, events))
+            candidates = readable
         chosen, used_solos = [], set()
         model = _fit_review_ranker(history) if args.rank_model and not args.auto_high_confidence else None
         for row, events in sorted(
