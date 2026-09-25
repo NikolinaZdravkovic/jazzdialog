@@ -21,6 +21,9 @@ SOURCE = ROOT / "output" / "wjd_phrase_call_response.csv"
 DATABASE = ROOT / "data_midi" / "wjazzd.db"
 OUTPUT = ROOT / "output" / "reviewed_dataset.json"
 PACKAGE = ROOT / "output" / "reviewed_dataset.zip"
+# Excel-prijateljski pogled finalne baze. Sadrzi iskljucivo rucno potvrdjene
+# DA anotacije; JSON/ZIP iznad ostaju potpuni, proverljivi prenosivi paket.
+FINAL_CSV = ROOT / "output" / "accepted_call_response_pairs.csv"
 
 
 def annotation(row, events):
@@ -269,14 +272,102 @@ def export(result, package=False):
             zip_temporary.unlink(missing_ok=True)
 
 
+def _overlap_groups(records):
+    """Vrati stabilan ID povezane komponente preklapajucih anotacija."""
+    parent = {record["id"]: record["id"] for record in records}
+
+    def find(item):
+        while parent[item] != item:
+            parent[item] = parent[parent[item]]
+            item = parent[item]
+        return item
+
+    def union(first, second):
+        first, second = find(first), find(second)
+        if first != second:
+            parent[second] = first
+
+    for record in records:
+        for other in record["overlapping_ids"]:
+            union(record["id"], other)
+    components = {}
+    for record in records:
+        components.setdefault(find(record["id"]), []).append(record["id"])
+    group_by_id = {}
+    for members in components.values():
+        if len(members) > 1:
+            group = "overlap:" + min(members)
+            group_by_id.update({member: group for member in members})
+    return group_by_id
+
+
+def _final_csv_rows(result):
+    """Izravnaj provereni manifest za pregled u Excelu i analizu u Pythonu."""
+    groups = _overlap_groups(result["records"])
+    rows = []
+    for record in result["records"]:
+        call, response = record["call"], record["response"]
+        call_notes, response_notes = call["notes"], response["notes"]
+        rows.append({
+            "pair_id": record["id"],
+            "melid": record["melid"],
+            "title": record["title"],
+            "performer": record["performer"],
+            "evaluation_group": record["evaluation_group"],
+            "call_start_note": call["start_note"],
+            "call_end_note_exclusive": call["end_note_exclusive"],
+            "response_start_note": response["start_note"],
+            "response_end_note_exclusive": response["end_note_exclusive"],
+            "call_start_seconds": call_notes[0]["onset_seconds"],
+            "response_start_seconds": response_notes[0]["onset_seconds"],
+            "response_end_seconds": (
+                response_notes[-1]["onset_seconds"] + response_notes[-1]["duration_seconds"]
+            ),
+            "call_note_count": len(call_notes),
+            "response_note_count": len(response_notes),
+            "call_pitches": json.dumps([note["pitch"] for note in call_notes]),
+            "response_pitches": json.dumps([note["pitch"] for note in response_notes]),
+            "candidate_source": record["candidate_source"],
+            "midi_file": record["midi"],
+            "overlap_group": groups.get(record["id"], ""),
+            "overlapping_pair_ids": json.dumps(record["overlapping_ids"]),
+            "preferred_annotation_id": record.get("preferred_annotation_id", ""),
+        })
+    return rows
+
+
+def export_final_csv(result, destination=FINAL_CSV):
+    """Upisi samo DA parove nakon sto su manifest i MIDI vec provereni."""
+    rows = _final_csv_rows(result)
+    if len(rows) != result["annotation_count"] or len({row["pair_id"] for row in rows}) != len(rows):
+        raise ValueError("Final CSV identity check failed")
+    fields = list(rows[0]) if rows else ["pair_id"]
+    buffer = io.StringIO(newline="")
+    writer = csv.DictWriter(buffer, fieldnames=fields)
+    writer.writeheader()
+    writer.writerows(rows)
+    # Proveri ono sto ce Excel otvoriti, pre zamene prethodnog fajla.
+    parsed = list(csv.DictReader(io.StringIO(buffer.getvalue())))
+    if len(parsed) != len(rows) or {row["pair_id"] for row in parsed} != {row["pair_id"] for row in rows}:
+        raise ValueError("Final CSV round-trip check failed")
+    temporary = destination.with_suffix(".csv.tmp")
+    try:
+        temporary.write_text(buffer.getvalue(), encoding="utf-8-sig", newline="")
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return len(rows), sum(bool(row["overlap_group"]) for row in rows)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--export", action="store_true")
     parser.add_argument("--package", action="store_true", help="Export JSON and one validated portable ZIP with MIDI files")
+    parser.add_argument("--final-csv", action="store_true", help="Export only confirmed DA pairs as an Excel-friendly CSV")
     parser.add_argument("--verify-package", type=Path, metavar="ZIP", help="Check ZIP without WJD, CSV or local MIDI")
     parser.add_argument("--review", action="store_true", help="Show overlapping versions from the verified package")
     args = parser.parse_args()
-    if (args.verify_package or args.review) and (args.export or args.package):
+    if (args.verify_package or args.review) and (args.export or args.package or args.final_csv):
         parser.error('Review/verification cannot be combined with export')
     if args.verify_package or args.review:
         result = verify_package(args.verify_package or PACKAGE)
@@ -295,3 +386,6 @@ if __name__ == "__main__":
         print(OUTPUT)
         if args.package:
             print(PACKAGE)
+    if args.final_csv:
+        count, overlapping = export_final_csv(result)
+        print(f"{FINAL_CSV} ({count} DA annotations; {overlapping} in overlap groups)")
