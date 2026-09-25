@@ -32,8 +32,13 @@ def _convert(row):
         "phrase_value": f"MLU:{row['call_idea_label']}->{row['response_idea_label']}",
         "osnovni_skor": row["pitch_dtw"],
         "score": row["pitch_dtw"],
-        "candidate_source": "wjd_mlu_back_reference_v1",
-        "decision_reason": "Rucna provera WJD IDEA back-reference kandidata",
+        # Zadrzavamo tacan nacin na koji je kandidat dosao do pregleda. Tako
+        # kasnije mozemo posteno uporediti siroki MLU generator i strogi
+        # melody-link cohort, umesto da ih stopimo u jednu navodnu metodu.
+        "candidate_source": row.get("candidate_source", "wjd_mlu_back_reference_v1"),
+        "decision_reason": row.get(
+            "decision_reason", "Rucna provera WJD IDEA back-reference kandidata"
+        ),
         "automatski_status": "MLU_REVIEWED",
     })
     return converted

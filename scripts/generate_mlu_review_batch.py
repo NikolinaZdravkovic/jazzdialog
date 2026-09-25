@@ -33,6 +33,10 @@ OUTPUT_CSV = ROOT / "output" / "mlu_review_batch.csv"
 AUTO_OUTPUT_CSV = ROOT / "output" / "automatic_high_confidence_candidates.csv"
 EXCERPT_DIR = ROOT / "output" / "mlu_review_midis"
 AUTO_EXCERPT_DIR = ROOT / "output" / "automatic_high_confidence_midis"
+# Poseban mali batch za najprecizniji dosadasnji signal. Ne prepisuje siroki
+# MLU batch koji korisnica eventualno jos proverava.
+MELODY_OUTPUT_CSV = ROOT / "output" / "melody_link_review_batch.csv"
+MELODY_EXCERPT_DIR = ROOT / "output" / "melody_link_review_midis"
 REVIEW_HISTORY = ROOT / "output" / "wjd_phrase_call_response.csv"
 MIN_NOTES = 7
 MAX_NOTES = 20
@@ -155,6 +159,20 @@ def _is_excluded_category(label):
     """Prvi batch je odbacio MLU ritma i ekspresivnog gesta kao CR parove."""
     lowered = str(label).lower()
     return any(category in lowered for category in ("rhythm", "expressive", "void", "fragment"))
+
+
+def _is_melody_link(row):
+    """Vrati da samo za WJD oznaku direktne melodijske veze.
+
+    Ovo nije automatska CR odluka. U dve nezavisne rucno ocenjene ture
+    ``melody -> #melody`` je imao mnogo bolju preciznost od DTW skora, pa ga
+    izdvajamo kao mali prioritetni skup za sledece slusanje. Namerno je tacno
+    poredenje oznaka: sire kategorije poput ``#-melody`` nisu jos proverene.
+    """
+    return (
+        str(row["call_idea_label"]).strip().lower() == "melody"
+        and str(row["response_idea_label"]).strip().lower() == "#melody"
+    )
 
 
 def _temporal_features(events, row):
@@ -308,10 +326,20 @@ def main():
         ),
     )
     parser.add_argument(
+        "--melody-links", action="store_true",
+        help=(
+            "izvezi samo WJD IDEA melodija -> #melodija veze u poseban mali "
+            "batch; ovo je prednost za rucni pregled, ne automatska DA oznaka"
+        ),
+    )
+    parser.add_argument(
         "--normalize-existing", action="store_true",
         help="popravi CSV ako je Excel dodao DA/NE kao novu prvu kolonu",
     )
     args = parser.parse_args()
+
+    if args.melody_links and (args.auto_high_confidence or args.rank_model):
+        parser.error("--melody-links se ne kombinuje sa --auto-high-confidence ni --rank-model")
 
     if args.normalize_existing:
         with OUTPUT_CSV.open(encoding="utf-8-sig", newline="") as stream:
@@ -379,6 +407,18 @@ def main():
                 row.update({key: round(value, 6) for key, value in features.items()})
                 readable.append((row, events))
             candidates = readable
+
+        if args.melody_links:
+            candidates = [
+                (row, events) for row, events in candidates if _is_melody_link(row)
+            ]
+            for row, _ in candidates:
+                row["candidate_source"] = "wjd_mlu_melody_link_v1"
+                row["decision_reason"] = (
+                    "WJD IDEA oznaka melody -> #melody; prioritet za rucnu proveru"
+                )
+                row["automatski_status"] = "ZA_RUCNI_PREGLED_MELODY_LINK"
+
         chosen, used_solos = [], set()
         model = _fit_review_ranker(history) if args.rank_model and not args.auto_high_confidence else None
         for row, events in sorted(
@@ -386,7 +426,10 @@ def main():
             key=lambda item: (-_rank_probability(item[0], model), _priority(item[0]))
             if model is not None else _priority(item[0]),
         ):
-            if row["melid"] in used_solos:
+            # U sirokom batchu jedna pesma daje najvise jedan kandidat da
+            # pregled ne bi preplavila. Melody-link batch je namerno veoma
+            # mali, pa cuvamo sve razlicite anotirane veze, i iz iste pesme.
+            if not args.melody_links and row["melid"] in used_solos:
                 continue
             row["review_rank"] = len(chosen) + 1
             # _write_excerpt_midi koristi ova polja samo za stabilno ime fajla.
@@ -407,16 +450,25 @@ def main():
                 "phrase_end_index_inclusive": row["response_end_solo_inclusive"],
             })
             if not args.no_midi:
-                excerpt_dir = AUTO_EXCERPT_DIR if args.auto_high_confidence else EXCERPT_DIR
+                excerpt_dir = (
+                    MELODY_EXCERPT_DIR if args.melody_links
+                    else AUTO_EXCERPT_DIR if args.auto_high_confidence
+                    else EXCERPT_DIR
+                )
                 row["excerpt_midi"] = str(_write_excerpt_midi(events, row, excerpt_dir))
             chosen.append(row)
-            used_solos.add(row["melid"])
+            if not args.melody_links:
+                used_solos.add(row["melid"])
             if len(chosen) >= args.limit:
                 break
     finally:
         conn.close()
 
-    output_csv = AUTO_OUTPUT_CSV if args.auto_high_confidence else OUTPUT_CSV
+    output_csv = (
+        MELODY_OUTPUT_CSV if args.melody_links
+        else AUTO_OUTPUT_CSV if args.auto_high_confidence
+        else OUTPUT_CSV
+    )
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     fields = (["validnost"] + [field for field in chosen[0] if field != "validnost"]
               if chosen else ["validnost", "napomena"])
@@ -424,11 +476,20 @@ def main():
         writer = csv.DictWriter(stream, fieldnames=fields)
         writer.writeheader()
         writer.writerows(chosen)
-    kind = "automatskih predloga" if args.auto_high_confidence else "za pregled"
+    kind = (
+        "melody-link kandidata za pregled" if args.melody_links
+        else "automatskih predloga" if args.auto_high_confidence
+        else "za pregled"
+    )
     print(f"MLU kandidata posle ogranicenja: {len(candidates)}; {kind}: {len(chosen)}")
     print(f"CSV: {output_csv}")
     if not args.no_midi:
-        print(f"MIDI: {AUTO_EXCERPT_DIR if args.auto_high_confidence else EXCERPT_DIR}")
+        midi_dir = (
+            MELODY_EXCERPT_DIR if args.melody_links
+            else AUTO_EXCERPT_DIR if args.auto_high_confidence
+            else EXCERPT_DIR
+        )
+        print(f"MIDI: {midi_dir}")
 
 
 if __name__ == "__main__":
