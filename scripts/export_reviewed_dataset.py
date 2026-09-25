@@ -21,12 +21,26 @@ SOURCE = ROOT / "output" / "wjd_phrase_call_response.csv"
 DATABASE = ROOT / "data_midi" / "wjazzd.db"
 OUTPUT = ROOT / "output" / "reviewed_dataset.json"
 PACKAGE = ROOT / "output" / "reviewed_dataset.zip"
-# Excel-prijateljski pogled finalne baze. Sadrzi iskljucivo rucno potvrdjene
-# DA anotacije; JSON/ZIP iznad ostaju potpuni, proverljivi prenosivi paket.
-FINAL_CSV = ROOT / "output" / "accepted_call_response_pairs.csv"
+DATASET_VERSION = "1.0.0"
+RELEASE_DIR = ROOT / "dataset"
+# Izdavacki pogled: samo rucno potvrdjeni parovi, verzionisan i odvojen od
+# radnih CSV-ova u output/.
+FINAL_CSV = RELEASE_DIR / "jazzdialog_v1.0.csv"
+FINAL_JSON = RELEASE_DIR / "jazzdialog_v1.0.json"
+FINAL_PACKAGE = RELEASE_DIR / "jazzdialog_v1.0_midi.zip"
 
 
-def annotation(row, events):
+def candidate_family(source):
+    """Prevedi istorijski naziv generatora u malu, citljivu taksonomiju."""
+    normalized = str(source or "").casefold()
+    if normalized.startswith("wjd_mlu"):
+        return "wjd_midlevel_unit_link"
+    if "manual" in normalized or "rucna" in normalized:
+        return "manual_reference"
+    return "wjd_phrase_split"
+
+
+def annotation(row, events, solo_metadata):
     start = int(row["phrase_start_index"])
     end = int(row["phrase_end_index_inclusive"])
     left = start + int(row.get("call_start_local") or 0)
@@ -68,10 +82,13 @@ def annotation(row, events):
     def segment(notes, first, last):
         return dict(start_note=first, end_note_exclusive=last,
                     notes=[dict(pitch=round(p), onset_seconds=o, duration_seconds=d) for o,p,d in notes])
+    source = row.get("candidate_source") or "unspecified"
     return dict(id=key, melid=int(row["melid"]), title=row["title"],
                 performer=row["performer"], phrase_value=row["phrase_value"],
                 evaluation_group=f"wjd-solo:{row['melid']}",
-                label="DA", candidate_source=row.get("candidate_source") or "unspecified",
+                label="DA", candidate_source=source,
+                candidate_family=candidate_family(source),
+                wjd_solo_metadata=solo_metadata,
                 manual_boundary_note=row.get("manual_boundary_note", ""),
                 preferred_annotation_id=row.get("preferred_annotation_id", ""),
                 boundary_choice_note=row.get("boundary_choice_note", ""),
@@ -93,7 +110,17 @@ def build(source=SOURCE, database=DATABASE):
                 melid = int(row["melid"])
                 if melid not in cache:
                     cache[melid] = conn.execute("SELECT onset,pitch,duration FROM melody WHERE melid=? ORDER BY eventid", (melid,)).fetchall()
-                records.append(annotation(row, cache[melid]))
+                metadata_row = conn.execute(
+                    "SELECT instrument, style, avgtempo, tempoclass, rhythmfeel, key, signature, solopart "
+                    "FROM solo_info WHERE melid=?", (melid,)
+                ).fetchone()
+                if metadata_row is None:
+                    raise ValueError("missing solo metadata")
+                metadata_fields = (
+                    "instrument", "style", "avgtempo_bpm", "tempo_class",
+                    "rhythm_feel", "key", "time_signature", "solo_part",
+                )
+                records.append(annotation(row, cache[melid], dict(zip(metadata_fields, metadata_row))))
             except (ValueError, KeyError, OSError, EOFError) as error:
                 errors.append(f"{row.get('melid')}/{row.get('phrase_value')}: {error}")
     finally:
@@ -109,8 +136,24 @@ def build(source=SOURCE, database=DATABASE):
             if first['melid'] == second['melid'] and max(first['call']['start_note'], second['call']['start_note']) < min(first['response']['end_note_exclusive'], second['response']['end_note_exclusive']):
                 first['overlapping_ids'].append(second['id'])
                 second['overlapping_ids'].append(first['id'])
-    return dict(schema_version=1, status="pilot_manual_annotations",
+    # Citljivi JD identifikatori su zamrznuti za ovo izdanje. Redosled je
+    # namerno azbucan, dok id i dalje cuva izvorne WJD granice.
+    records.sort(key=lambda record: (
+        record["performer"].casefold(), record["title"].casefold(),
+        record["melid"], record["call"]["start_note"],
+        record["response"]["start_note"], record["response"]["end_note_exclusive"],
+    ))
+    for index, record in enumerate(records, start=1):
+        record["jazzdialog_id"] = f"JD{index:04d}"
+        record["dataset_version"] = DATASET_VERSION
+    return dict(schema_version=2, dataset_name="JazzDialog",
+                dataset_version=DATASET_VERSION, status="human_verified_release",
                 source_csv=source.relative_to(ROOT).as_posix(), source_sha256=hashlib.sha256(snapshot).hexdigest(),
+                source_database=dict(
+                    name="Weimar Jazz Database (WJazzD)",
+                    local_release="2.1",
+                    license="ODbL 1.0; database contents under DbCL 1.0",
+                ),
                 note_indices="zero-based within solo; end exclusive",
                 time_units="seconds from solo origin",
                 annotation_count=len(records),
@@ -150,13 +193,17 @@ def verify_package(source):
         for name in names:
             if PurePosixPath(name).is_absolute() or '..' in PurePosixPath(name).parts or '\\' in name or ':' in name:
                 raise ValueError('Unsafe archive path')
-        result = json.loads(archive.read('reviewed_dataset.json'))
+        manifests = [name for name in names if name.endswith('.json')]
+        if len(manifests) != 1:
+            raise ValueError('Expected exactly one JSON manifest')
+        manifest_name = manifests[0]
+        result = json.loads(archive.read(manifest_name))
         records = result['records']
-        if result['schema_version'] != 1 or result['annotation_count'] != len(records):
+        if result['schema_version'] not in {1, 2} or result['annotation_count'] != len(records):
             raise ValueError('Manifest version/count mismatch')
         if len({r['id'] for r in records}) != len(records):
             raise ValueError('Duplicate annotation IDs')
-        expected_members = {'README.txt', 'reviewed_dataset.json'} | {r['midi'] for r in records}
+        expected_members = {'README.txt', manifest_name} | {r['midi'] for r in records}
         if set(names) != expected_members:
             raise ValueError('Missing or unexpected ZIP members')
         for record in records:
@@ -166,6 +213,10 @@ def verify_package(source):
                 raise ValueError('Invalid segment boundaries')
             if record['id'] != f"wjd:{record['melid']}:{left}:{split}:{right}" or record['label'] != 'DA':
                 raise ValueError('Invalid annotation identity/label')
+            if result['schema_version'] >= 2:
+                expected_id = f"JD{records.index(record) + 1:04d}"
+                if record.get('jazzdialog_id') != expected_id or record.get('dataset_version') != result['dataset_version']:
+                    raise ValueError('Invalid JazzDialog release identifier')
             if record['evaluation_group'] != f"wjd-solo:{record['melid']}":
                 raise ValueError('Invalid evaluation group')
             overlaps = {other['id'] for other in records if other['id'] != record['id']
@@ -201,7 +252,7 @@ def print_review(result):
     print('\nStored boundary preferences are separate from DA/NE labels. Overlap counts describe geometry, not unresolved decisions.')
 
 
-def package_bytes(result):
+def package_bytes(result, manifest_name='reviewed_dataset.json'):
     """Validate the exact bytes being packaged before replacing any output."""
     manifest = (json.dumps(result, ensure_ascii=False, indent=2)+'\n').encode('utf-8')
     buffer = io.BytesIO()
@@ -217,10 +268,10 @@ def package_bytes(result):
         validate_midi(record, payload)
         members[name] = payload
     with zipfile.ZipFile(buffer, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr('reviewed_dataset.json', manifest)
+        archive.writestr(manifest_name, manifest)
         archive.writestr('README.txt',
-            'JazzDialog pilot manual annotations\n\n'
-            'Open reviewed_dataset.json. MIDI paths are relative to this archive root.\n'
+            f"JazzDialog v{result.get('dataset_version', 'pilot')} human-verified annotations\n\n"
+            f"Open {manifest_name}. MIDI paths are relative to this archive root.\n"
             'Each MIDI contains CALL and RESPONSE tracks. MIDI time starts at call onset;\n'
             'JSON note times are seconds from the solo origin. MIDI rounding tolerance: 5 ms.\n'
             'DA labels are human judgments. Overlapping versions are retained and flagged;\n'
@@ -241,7 +292,7 @@ def package_bytes(result):
     with zipfile.ZipFile(buffer) as archive:
         if archive.testzip() is not None:
             raise ValueError('ZIP checksum validation failed')
-        if json.loads(archive.read('reviewed_dataset.json')) != result:
+        if json.loads(archive.read(manifest_name)) != result:
             raise ValueError('ZIP manifest mismatch')
         for name, payload in members.items():
             if archive.read(name) != payload:
@@ -309,10 +360,19 @@ def _final_csv_rows(result):
         call, response = record["call"], record["response"]
         call_notes, response_notes = call["notes"], response["notes"]
         rows.append({
-            "pair_id": record["id"],
-            "melid": record["melid"],
+            "jazzdialog_id": record["jazzdialog_id"],
+            "dataset_version": record["dataset_version"],
+            "source_pair_id": record["id"],
+            "wjd_melid": record["melid"],
             "title": record["title"],
             "performer": record["performer"],
+            "instrument": record["wjd_solo_metadata"]["instrument"],
+            "style": record["wjd_solo_metadata"]["style"],
+            "avgtempo_bpm": record["wjd_solo_metadata"]["avgtempo_bpm"],
+            "tempo_class": record["wjd_solo_metadata"]["tempo_class"],
+            "rhythm_feel": record["wjd_solo_metadata"]["rhythm_feel"],
+            "key": record["wjd_solo_metadata"]["key"],
+            "time_signature": record["wjd_solo_metadata"]["time_signature"],
             "evaluation_group": record["evaluation_group"],
             "call_start_note": call["start_note"],
             "call_end_note_exclusive": call["end_note_exclusive"],
@@ -328,7 +388,9 @@ def _final_csv_rows(result):
             "call_pitches": json.dumps([note["pitch"] for note in call_notes]),
             "response_pitches": json.dumps([note["pitch"] for note in response_notes]),
             "candidate_source": record["candidate_source"],
-            "midi_file": record["midi"],
+            "candidate_family": record["candidate_family"],
+            "annotation_status": "human_confirmed",
+            "midi_member": record["midi"],
             "overlap_group": groups.get(record["id"], ""),
             "overlapping_pair_ids": json.dumps(record["overlapping_ids"]),
             "preferred_annotation_id": record.get("preferred_annotation_id", ""),
@@ -339,19 +401,20 @@ def _final_csv_rows(result):
 def export_final_csv(result, destination=FINAL_CSV):
     """Upisi samo DA parove nakon sto su manifest i MIDI vec provereni."""
     rows = _final_csv_rows(result)
-    if len(rows) != result["annotation_count"] or len({row["pair_id"] for row in rows}) != len(rows):
+    if len(rows) != result["annotation_count"] or len({row["jazzdialog_id"] for row in rows}) != len(rows):
         raise ValueError("Final CSV identity check failed")
-    fields = list(rows[0]) if rows else ["pair_id"]
+    fields = list(rows[0]) if rows else ["jazzdialog_id"]
     buffer = io.StringIO(newline="")
     writer = csv.DictWriter(buffer, fieldnames=fields)
     writer.writeheader()
     writer.writerows(rows)
     # Proveri ono sto ce Excel otvoriti, pre zamene prethodnog fajla.
     parsed = list(csv.DictReader(io.StringIO(buffer.getvalue())))
-    if len(parsed) != len(rows) or {row["pair_id"] for row in parsed} != {row["pair_id"] for row in rows}:
+    if len(parsed) != len(rows) or {row["jazzdialog_id"] for row in parsed} != {row["jazzdialog_id"] for row in rows}:
         raise ValueError("Final CSV round-trip check failed")
     temporary = destination.with_suffix(".csv.tmp")
     try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
         temporary.write_text(buffer.getvalue(), encoding="utf-8-sig", newline="")
         temporary.replace(destination)
     finally:
@@ -359,15 +422,40 @@ def export_final_csv(result, destination=FINAL_CSV):
     return len(rows), sum(bool(row["overlap_group"]) for row in rows)
 
 
+def export_release(result):
+    """Napravi verzionisan CSV, JSON i MIDI ZIP za javni dataset folder."""
+    count, overlapping = export_final_csv(result)
+    manifest = (json.dumps(result, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+    packaged_manifest, package = package_bytes(result, manifest_name=FINAL_JSON.name)
+    if packaged_manifest != manifest:
+        raise ValueError("Release manifest mismatch")
+    RELEASE_DIR.mkdir(parents=True, exist_ok=True)
+    json_temporary = FINAL_JSON.with_suffix('.json.tmp')
+    zip_temporary = FINAL_PACKAGE.with_suffix('.zip.tmp')
+    try:
+        json_temporary.write_bytes(manifest)
+        zip_temporary.write_bytes(package)
+        json_temporary.replace(FINAL_JSON)
+        zip_temporary.replace(FINAL_PACKAGE)
+    finally:
+        json_temporary.unlink(missing_ok=True)
+        zip_temporary.unlink(missing_ok=True)
+    # Proveri bas fajl koji se predaje, bez oslanjanja na WJD ili radni CSV.
+    if verify_package(FINAL_PACKAGE) != result:
+        raise ValueError("Release package verification mismatch")
+    return count, overlapping
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--export", action="store_true")
     parser.add_argument("--package", action="store_true", help="Export JSON and one validated portable ZIP with MIDI files")
     parser.add_argument("--final-csv", action="store_true", help="Export only confirmed DA pairs as an Excel-friendly CSV")
+    parser.add_argument("--release", action="store_true", help="Export versioned CSV, JSON and MIDI ZIP into dataset/")
     parser.add_argument("--verify-package", type=Path, metavar="ZIP", help="Check ZIP without WJD, CSV or local MIDI")
     parser.add_argument("--review", action="store_true", help="Show overlapping versions from the verified package")
     args = parser.parse_args()
-    if (args.verify_package or args.review) and (args.export or args.package or args.final_csv):
+    if (args.verify_package or args.review) and (args.export or args.package or args.final_csv or args.release):
         parser.error('Review/verification cannot be combined with export')
     if args.verify_package or args.review:
         result = verify_package(args.verify_package or PACKAGE)
@@ -389,3 +477,6 @@ if __name__ == "__main__":
     if args.final_csv:
         count, overlapping = export_final_csv(result)
         print(f"{FINAL_CSV} ({count} DA annotations; {overlapping} in overlap groups)")
+    if args.release:
+        count, overlapping = export_release(result)
+        print(f"Release: {RELEASE_DIR} ({count} DA annotations; {overlapping} in overlap groups)")

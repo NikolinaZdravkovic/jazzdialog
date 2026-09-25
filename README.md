@@ -2,6 +2,27 @@
 
 JazzDialog je naučno-istraživački Python projekat čiji je cilj izgradnja dataseta **call-and-response parova u jazzu**.
 
+## Konačno izdanje baze
+
+Verzionisana baza je u folderu [`dataset/`](dataset/):
+
+- `jazzdialog_v1.0.csv` — 109 ručno potvrđenih parova, azbučno sortiranih po izvođaču i pesmi, sa `JD0001`–`JD0109` identifikatorima;
+- `jazzdialog_v1.0.json` — potpuni zapis nota, trajanja i granica;
+- `jazzdialog_v1.0_midi.zip` — prenosivi MIDI isečci sa odvojenim CALL i RESPONSE trakama;
+- `DATASET_CARD.md` — poreklo, schema, način anotiranja, ograničenja, licence i reference.
+
+Svaki red je eksplicitno ručno označen kao validan `DA`. `wjd_melid` i
+`source_pair_id` čuvaju vezu sa izvornom Weimar Jazz Database anotacijom;
+`evaluation_group` sprečava da isti solo bude podeljen između treninga i testa.
+`overlap_group` označava različite potvrđene granice koje se geometrijski
+preklapaju.
+
+Za ponovnu izgradnju celog izdanja iz kanonskog review CSV-a pokreni:
+
+```powershell
+.\venv\Scripts\python.exe scripts\export_reviewed_dataset.py --release
+```
+
 Aktuelna detekcija poredi call i response unutar jedne zvanične WJD fraze pomoću globalnog DTW-a i incipita. Za nove kandidate traži najmanje 5 nota po segmentu, ograničava odnos dužina call-a i response-a i pamti ručno označene `NE` podele. Spajanje susednih WJD fraza je isključeno za nove kandidate, dok raniji ručno označeni redovi preko granice ostaju sačuvani u CSV-u kao istorijski primeri.
 
 Rezultati se čuvaju u `output/wjd_phrase_call_response.csv`. Svaki kandidat se zatim ručno preslušava i označava:
@@ -80,7 +101,8 @@ Za prenosiv paket sa JSON-om, postojećim MIDI isečcima i kratkim uputstvom pok
 
 Komanda proverava podatke i pravi `output/reviewed_dataset.zip`, a osvežava i JSON. Raspakuj ZIP i otvori MIDI iz putanje navedene u manifestu; WJD baza nije potrebna za preslušavanje. Paket zadržava preklapajuće verzije kao pilot anotacije. Provera tačnih MIDI bajtova, nota, tajminga i putanja završava se pre zamene prethodnog izvoza; greška validacije ostavlja prethodni paket sačuvan. Izvorni CSV i WJD baza nisu u paketu.
 
-JSON i kanonski ZIP sa MIDI-jima su u Git-u i lokalno u `output`; pojedinačni MIDI fajlovi ostaju na svojim mestima.
+Radni JSON i ZIP ostaju lokalno u `output`; izdavački CSV, JSON i MIDI ZIP su
+u `dataset/` i predstavljaju verziju za deljenje ili citiranje.
 
 Za pregled različitih granica potvrđenih primera pokreni:
 
