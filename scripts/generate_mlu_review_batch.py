@@ -41,6 +41,8 @@ MELODY_EXCERPT_DIR = ROOT / "output" / "melody_link_review_midis"
 # primera. Ostaje odvojen od standardnog review reda.
 HARVEST_OUTPUT_CSV = ROOT / "output" / "rapid_harvest_review_batch.csv"
 HARVEST_EXCERPT_DIR = ROOT / "output" / "rapid_harvest_review_midis"
+VARIATION_OUTPUT_CSV = ROOT / "output" / "variation_followup_review_batch.csv"
+VARIATION_EXCERPT_DIR = ROOT / "output" / "variation_followup_review_midis"
 REVIEW_HISTORY = ROOT / "output" / "wjd_phrase_call_response.csv"
 MIN_NOTES = 7
 MAX_NOTES = 20
@@ -203,6 +205,25 @@ def _rapid_harvest_tier(row):
         return "B: lick_blues -> #lick_blues"
     if call == "lick" and response == "#+lick":
         return "C: lick -> #+lick"
+    return None
+
+
+def _variation_followup_tier(row):
+    """Izaberi sledece, ogranicene varijacione veze za rucni pregled.
+
+    Prvi rapidni batch je pokazao da ``lick -> #+lick`` (transponovana
+    varijacija) ima bolji prinos od doslovno slicnih #lick parova. Srodni
+    melodijski tipovi su odvojeni kao slabiji tier, da rezultat ne bude
+    predstavljen kao jednako jak dokaz.
+    """
+    call = str(row["call_idea_label"]).strip().lower()
+    response = str(row["response_idea_label"]).strip().lower()
+    if call == "lick" and response == "#+lick":
+        return "A: lick -> #+lick"
+    if call == "melody" and response == "#-melody":
+        return "B: melody -> #-melody"
+    if call == "#-melody" and response == "#-melody":
+        return "C: #-melody -> #-melody"
     return None
 
 
@@ -371,16 +392,26 @@ def main():
         ),
     )
     parser.add_argument(
+        "--variation-followup", action="store_true",
+        help=(
+            "izvezi preostale WJD transponovane lick i melody veze u poseban "
+            "follow-up batch za rucnu proveru"
+        ),
+    )
+    parser.add_argument(
         "--normalize-existing", action="store_true",
         help="popravi CSV ako je Excel dodao DA/NE kao novu prvu kolonu",
     )
     args = parser.parse_args()
 
-    special_modes = sum((args.melody_links, args.rapid_harvest, args.auto_high_confidence))
+    special_modes = sum((
+        args.melody_links, args.rapid_harvest, args.variation_followup,
+        args.auto_high_confidence,
+    ))
     if special_modes > 1:
-        parser.error("izaberi samo jedan od --melody-links, --rapid-harvest i --auto-high-confidence")
-    if (args.melody_links or args.rapid_harvest) and args.rank_model:
-        parser.error("--rank-model se ne kombinuje sa --melody-links ni --rapid-harvest")
+        parser.error("izaberi samo jedan specijalni nacin izvoza")
+    if (args.melody_links or args.rapid_harvest or args.variation_followup) and args.rank_model:
+        parser.error("--rank-model se ne kombinuje sa posebnim batch nacinima")
 
     if args.normalize_existing:
         with OUTPUT_CSV.open(encoding="utf-8-sig", newline="") as stream:
@@ -476,11 +507,27 @@ def main():
                 harvested.append((row, events))
             candidates = harvested
 
+        if args.variation_followup:
+            followup = []
+            for row, events in candidates:
+                tier = _variation_followup_tier(row)
+                if tier is None:
+                    continue
+                row["selection_tier"] = tier
+                row["candidate_source"] = "wjd_mlu_variation_followup_v1"
+                row["decision_reason"] = (
+                    "WJD transponovana IDEA veza; follow-up za rucnu proveru, "
+                    "nije automatska DA odluka"
+                )
+                row["automatski_status"] = "ZA_RUCNI_PREGLED_VARIATION_FOLLOWUP"
+                followup.append((row, events))
+            candidates = followup
+
         chosen, used_solos = [], set()
         model = _fit_review_ranker(history) if args.rank_model and not args.auto_high_confidence else None
         def sort_key(item):
             row = item[0]
-            if args.rapid_harvest:
+            if args.rapid_harvest or args.variation_followup:
                 # Slovo A/B/C je namerna unapred definisana jacina dokaza,
                 # a DTW sluzi samo kao stabilan red unutar istog tier-a.
                 return (row["selection_tier"][0], _priority(row))
@@ -492,7 +539,7 @@ def main():
             # U sirokom batchu jedna pesma daje najvise jedan kandidat da
             # pregled ne bi preplavila. Melody-link batch je namerno veoma
             # mali, pa cuvamo sve razlicite anotirane veze, i iz iste pesme.
-            if not (args.melody_links or args.rapid_harvest) and row["melid"] in used_solos:
+            if not (args.melody_links or args.rapid_harvest or args.variation_followup) and row["melid"] in used_solos:
                 continue
             row["review_rank"] = len(chosen) + 1
             # _write_excerpt_midi koristi ova polja samo za stabilno ime fajla.
@@ -516,12 +563,13 @@ def main():
                 excerpt_dir = (
                     MELODY_EXCERPT_DIR if args.melody_links
                     else HARVEST_EXCERPT_DIR if args.rapid_harvest
+                    else VARIATION_EXCERPT_DIR if args.variation_followup
                     else AUTO_EXCERPT_DIR if args.auto_high_confidence
                     else EXCERPT_DIR
                 )
                 row["excerpt_midi"] = str(_write_excerpt_midi(events, row, excerpt_dir))
             chosen.append(row)
-            if not (args.melody_links or args.rapid_harvest):
+            if not (args.melody_links or args.rapid_harvest or args.variation_followup):
                 used_solos.add(row["melid"])
             if len(chosen) >= args.limit:
                 break
@@ -531,6 +579,7 @@ def main():
     output_csv = (
         MELODY_OUTPUT_CSV if args.melody_links
         else HARVEST_OUTPUT_CSV if args.rapid_harvest
+        else VARIATION_OUTPUT_CSV if args.variation_followup
         else AUTO_OUTPUT_CSV if args.auto_high_confidence
         else OUTPUT_CSV
     )
@@ -544,6 +593,7 @@ def main():
     kind = (
         "melody-link kandidata za pregled" if args.melody_links
         else "rapid-harvest kandidata za pregled" if args.rapid_harvest
+        else "varijacionih follow-up kandidata za pregled" if args.variation_followup
         else "automatskih predloga" if args.auto_high_confidence
         else "za pregled"
     )
@@ -553,6 +603,7 @@ def main():
         midi_dir = (
             MELODY_EXCERPT_DIR if args.melody_links
             else HARVEST_EXCERPT_DIR if args.rapid_harvest
+            else VARIATION_EXCERPT_DIR if args.variation_followup
             else AUTO_EXCERPT_DIR if args.auto_high_confidence
             else EXCERPT_DIR
         )
