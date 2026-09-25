@@ -85,9 +85,19 @@ def _features(row):
     )
     max_path_offset = max(abs(call_index - response_index) for call_index, response_index in path)
 
-    call_seconds = float(row["response_start_seconds"]) - float(row["call_start_seconds"])
-    response_seconds = float(row["phrase_end_seconds"]) - float(row["response_start_seconds"])
-    max_note_density = max(len(call) / call_seconds, len(response) / response_seconds)
+    # Stariji MLU review redovi nisu cuvali sekunde. Ostale melodijske mere
+    # i dalje vaze za njih; gustina se racuna samo tamo gde su granice u
+    # sekundama zaista zapisane, umesto da analiza puca ili izmisli nulu.
+    time_fields = ("call_start_seconds", "response_start_seconds", "phrase_end_seconds")
+    if all(str(row.get(field, "")).strip() for field in time_fields):
+        call_seconds = float(row["response_start_seconds"]) - float(row["call_start_seconds"])
+        response_seconds = float(row["phrase_end_seconds"]) - float(row["response_start_seconds"])
+        max_note_density = (
+            max(len(call) / call_seconds, len(response) / response_seconds)
+            if call_seconds > 0 and response_seconds > 0 else None
+        )
+    else:
+        max_note_density = None
 
     return {
         "global_dtw": global_dtw,
@@ -130,7 +140,11 @@ def main(input_csv=INPUT_CSV):
         "max_note_density",
         "diagonal_fraction",
     ):
-        values = [(item["label"], item[name]) for item in items]
+        values = [(item["label"], item[name]) for item in items
+                  if item[name] is not None and math.isfinite(item[name])]
+        if not values:
+            print(f"  {name}: nema dovoljno zapisanih vrednosti")
+            continue
         da_values = [value for label, value in values if label == "DA"]
         ne_values = [value for label, value in values if label == "NE"]
         lower_auc = _auc_when_lower_is_better(values)
