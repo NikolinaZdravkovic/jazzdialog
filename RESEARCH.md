@@ -1,6 +1,186 @@
 # Kako završiti jazz call-response dataset
 
-## Zaključak za nastavak rada
+## Provera statističkih kazni za obrasce — 28. septembar 2026.
+
+**Rezultat:** na sadašnjim oznakama nismo dobili dosledno poboljšanje dodavanjem
+blage kazne za intervalske obrasce česti među `NE` primerima. Postojeći mali
+model za rangiranje već koristi DA/NE povratnu informaciju. Nova kazna je
+uglavnom menjala tek nekoliko mesta na listi; dodavanje većeg broja intervalskih
+osobina u isti tip modela uglavnom je pogoršalo rezultat. To je rezultat ovog
+ograničenog eksperimenta, ne dokaz protiv svih oblika učenja iz negativnih primera.
+
+Ovaj odeljak opisuje novi snimak podataka. Odeljci ispod njega čuvaju istorijske
+eksperimente sa manjim uzorcima i ne predstavljaju današnje stanje baze.
+
+### Podaci i pošteno poređenje
+
+- Provereno je svih **307 označenih parova: 109 DA i 198 NE**. Njihove granice
+  i pitch nizovi tačno odgovaraju WJD događajima; nije bilo duplikata istih
+  apsolutnih granica niti odbačenih redova zbog neuspešnog povezivanja.
+- Glavno poređenje obuhvata **299 algoritamski predloženih parova: 101 DA i
+  198 NE iz 166 sola**. Osam ručno unetih referenci izostavljeno je kako ručno
+  odabrani pozitivni primeri ne bi poboljšavali rezultat predlagača.
+- Posebno je analizirano **238 MLU kandidata: 87 DA i 151 NE iz 152 sola**.
+  To omogućava poređenje unutar jedne porodice predloga, bez mešanja sa starim
+  podelama WJD fraza. WJD IDEA anotacije su ručne anotacije izvorne baze;
+  ovi rezultati nisu uspeh detektora koji radi samo iz sirovih nota.
+- Korišćena je grupisana petostruka unakrsna validacija, sa unapred zadatim
+  seed vrednostima `11, 29, 47`. Svi kandidati istog sola pripadaju istom delu.
+  Sredine, standardne devijacije, statistike obrazaca i težine modela računaju
+  se samo iz trening dela. To sledi standardnu zaštitu od curenja informacija
+  između treninga i provere: [grupisana validacija](https://scikit-learn.org/stable/modules/cross_validation.html#cross-validation-iterators-for-grouped-data)
+  i [preprocesiranje samo na treningu](https://scikit-learn.org/stable/common_pitfalls.html#data-leakage).
+- Glavna mera je **preciznost među najbolje rangiranih 20% kandidata u svakom
+  test delu**, sa zaokruživanjem broja kandidata naviše. Ukupno je to 60 predloga
+  po podeli za svih 299, odnosno 50 za MLU podskup. Svi modeli dobijaju isti
+  budžet za preslušavanje. To nije accuracy nad svim frazama WJD-a.
+
+### Šta je već postojalo, a šta je sada testirano
+
+`search_wjd_phrase_splits.py` već ima kaznu do 0,20 za blizinu najbližem
+poznatom NE paru, uz prag udaljenosti 0,30. Ona poredi cele pitch nizove i
+njihov transponovani oblik. Ne meri odnos DA/NE među mnogim sličnim primerima.
+`generate_mlu_review_batch.py --rank-model` već ima regularizovanu logističku
+regresiju sa deset osobina: dve DTW mere, dužine, njihovu neravnotežu,
+zajednički motiv i ponavljanje tonova. Trenira se samo na redovima sa izvornom
+oznakom `wjd_mlu_back_reference_v1`. Dakle, statističko učenje prioriteta nije
+potpuno nova ideja u ovom projektu, ali njegov efekat treba izmeriti.
+
+Novi eksperiment poredi osam varijanti:
+
+1. Postojeći DTW + incipit, preračunat istom funkcijom za sve kandidate,
+   sa `alpha=0.8`, `k=3` i postojećom korekcijom incipita za brzi tempo.
+2. Taj skor sa postojećom NE kaznom, koristeći isključivo trening reference.
+3. Postojeći model za rangiranje, sa njegovim postojećim izborom trening izvora.
+4. Isti model i istih deset osobina, ponovo obučen na svim dozvoljenim trening
+   redovima. Ovo je kontrola za nove kazne, da se promena trening skupa ne
+   predstavi kao uspeh nove reprezentacije.
+5. Samostalni prioritet prema učestalosti DA/NE među intervalskim obrascima.
+6. Model iz tačke 4 sa blagom kaznom prema tim učestalostima.
+7. Model iz tačke 4 proširen intervalskim osobinama.
+8. Model iz tačke 4 sa blagom kaznom prema odnosu DA/NE među 15 najbližih
+   primera u standardizovanom prostoru osobina. To je lokalno učenje iz
+   sličnih primera, srodno [metodi najbližih suseda](https://scikit-learn.org/stable/modules/neighbors.html).
+
+Obrazac je niz dva ili tri uzastopna pomeraja tona, nezavisan od transpozicije.
+Pomeraji su svrstani u devet grupa: najviše −5, −4/−3, −2, −1, 0, +1, +2,
++3/+4 i najmanje +5 polutonova. Posebno se beleži prisustvo obrasca u call-u,
+response-u i oba dela. Jedan obrazac doprinosi samo jednom po paru i ulozi,
+bez obzira koliko se puta ponovi. Potrebno je najmanje pet trening redova iz
+tri sola; procena se ublažava sa pet pseudoopažanja na nivou trening udela DA.
+Nepoznat obrazac dobija trening polaznu stopu. Ne koristi se minimum preko
+različitih signala. Prosek poznatih obrazaca računa se po ulozi, zatim između
+tri uloge. U proširenom modelu dodate su distribucije intervala, promene smera
+i udeo povrataka na ton od pre dve note, ukupno 22 dodatne osobine.
+
+Nova kazna je `0.35 * max(0, trening_udeo_DA - procenjeni_udeo_DA_obrasca)`.
+Oduzima se od izlaza modela za rangiranje; obrazac ne predstavlja zabranu i
+ne menja ljudsku oznaku. Izlaz logističkog modela ovde nije nezavisno
+kalibrisana verovatnoća muzičke ispravnosti. Jačina kazne, broj suseda i
+reprezentacija nisu naknadno birani prema rezultatima test delova.
+
+### Rezultati pri istom broju predloga
+
+Brojevi u tabeli su srednja preciznost kroz tri podele **istog skupa**.
+Ponavljanja nisu novi nezavisni primeri i njihovi brojevi DA ne smeju se sabirati
+kao dodatni parovi u datasetu.
+
+| Metoda | Svih 299 kandidata, 60 predloga | MLU podskup, 50 predloga |
+|---|---:|---:|
+| DTW + incipit | 42,8% | 44,7% |
+| DTW + postojeća NE kazna | 43,3% | 46,0% |
+| Postojeći model za rangiranje | 56,1% | 54,7% |
+| Isti model, obučen na svim trening oznakama | 54,4% | **56,0%** |
+| Samo učestalost intervalskih obrazaca | 35,0% | 31,3% |
+| Model + nova kazna za intervalske obrasce | 53,9% | **56,0%** |
+| Model + nova kazna prema sličnim primerima | 53,3% | 54,7% |
+| Model sa dodatim intervalskim osobinama | 45,6% | 42,7% |
+
+Najdirektnije poređenje je na MLU podskupu: postojeći tip modela obučen na
+svim trening oznakama daje **26/50, 29/50, 29/50** dobrih predloga. Sa novom
+kaznom za obrasce rezultat je **26/50, 29/50, 29/50**. Sa kaznom prema 15
+sličnih primera rezultat je **27/50, 28/50, 27/50**. Nema doslednog dobitka.
+Kod modela sa dodatnim intervalskim osobinama dobijeno je **21/50, 23/50,
+20/50**. Više osobina nije pomoglo na ovom malom uzorku.
+
+Izračunati su i ROC-AUC i average precision, kao i 2.000 uparenih bootstrap
+uzoraka grupisanih po solu/izvođaču za razliku preciznosti u odnosu na model
+iz tačke 4. Bootstrap tretira dobijene vantrening predikcije kao fiksne i ne
+obuhvata ponovno obučavanje modela. Na MLU podskupu AUC modela iz tačke 4 je
+0,628–0,660, a sa kaznom za obrasce 0,629–0,661; razlika u kvalitetu ukupnog
+rangiranja je takođe mala. Samostalna statistika obrazaca daje AUC
+0,393–0,523. Smer skora nije naknadno obrnut da bi rezultat izgledao bolje.
+
+### Dodatne provere i granice zaključka
+
+- **Izvođači izdvojeni iz treninga:** isti MLU skup raspoređen je u 59 grupa
+  po izvođaču. Model obučen na svim trening oznakama daje prosečno 52,0%
+  preciznosti, nova kazna 53,3%, kazna po susedima 52,7%, a prošireni intervalski
+  model 46,7%. Mali porast kazne nije dosledno prisutan u svim podelama.
+- **Bez preklapanja:** izborom prvog vremenski sortiranog kandidata, bez
+  gledanja oznake, ostaju 263 nepreklapajuće anotacije. U unapred zadatoj
+  podeli kontrolni model daje 30/55 dobrih predloga, obe nove kazne 31/55,
+  a prošireni intervalski model 23/55. Jedan dodatni dobar predlog nije
+  dovoljan za tvrdnju o stabilnom napretku.
+- **Kasnije grupe:** model se obučava na 158 ranijih MLU redova, a proverava
+  na 41 redu iz kasnijih, drugačije označenih grupa, od kojih je 18 DA.
+  Svi test soloi uklonjeni su iz treninga. Kontrolni model i obe kazne daju
+  5 DA među devet predloga; intervalski model daje 6/9. Ovo je mala provera
+  prema poreklu grupe, ne prava vremenska validacija: nemamo datume pojedinačnih
+  oznaka. Jedna povoljna mala grupa ne nadjačava ostale nepovoljne rezultate.
+- **Cilj od 80% preciznosti:** prag se bira isključivo iz unutrašnje trostruke
+  grupisane validacije trening dela, uz najmanje deset predloga iz tri grupe.
+  Kada takav prag ne postoji, metoda odustaje. Nova kazna za obrasce ne daje
+  nijedan predlog pri ovom protokolu, ni na svih 299 ni na MLU podskupu.
+  Kod DTW osnove MLU podskup daje male selekcije 5/6, 6/7 i 10/12 DA, dok
+  isti postupak na mešanom skupu daje 1/3, 2/4 i 4/6 DA. To nije pouzdana
+  opšta stopa od 80%, niti obuhvat svih CR pojava.
+- **Kontrole:** postojeća kazna i postojeći logistički model reprodukovani
+  su pozivanjem originalnih funkcija, do tolerancije `1e-12`. Promena svih
+  test oznaka nije promenila nijedan izračunati skor. Potvrđena je
+  transpoziciona invarijantnost intervalskih predstava i razdvojenost grupa.
+  Pri reprodukciji stare kazne sačuvan je smer poređenja: DTW trošak je
+  simetričan, ali izbor između izjednačenih putanja može dati različite dužine,
+  pa `distance / path_length` u postojećoj implementaciji nije nužno simetričan.
+
+U opisnoj analizi celog skupa postoji, na primer, zajednički obrazac spuštanja
+za jedan pa dva polutona koji se javlja u 29 parova: 25 NE i četiri DA.
+Takvi obrasci jesu kandidati za statističku kaznu, ali nisu zabrane. Izabrani
+su gledanjem svih oznaka, pa njihove pojedinačne stope nisu dokaz uspeha na
+novim podacima. Ovde je ukupno 562 obrasca zadovoljilo uslov podrške;
+naknadno biranje samo najlošijih stvorilo bi novu priliku za preprilagođavanje.
+
+**Odluka:** ne uključivati novu kaznu u produkcijski izbor na osnovu ovog
+testa. Predlog ima razumnu osnovu i preciznije koristi učestalost od stare
+kazne za najbliži NE primer, ali u ovim testovima ne skraćuje stabilno broj
+preslušavanja potreban za dobar par. Rezultat je koristan kao dopuna analizi
+rada. Ne menja objavljene anotacije niti broj 109 DA u izdanju baze.
+
+Ovo je retrospektivna razvojna evaluacija na kandidatima koji su već prošli
+različite filtere i ljudski pregled. Te oznake su ranije uticale na projektovanje
+sistema. Zato ni grupisana validacija ne pretvara ovaj skup u netaknut završni
+test. Ne znamo šta se dešava kada se uklone stari strogi filteri, jer mnogi
+tada dostupni kandidati nisu ocenjeni. Neoznačene fraze nisu NE. Nisu izmereni
+recall cele WJD baze, saglasnost više ocenjivača, niti efekat na izbor novih
+granica call-a i response-a.
+
+### Ponovljivost ovog eksperimenta
+
+Izvorne oznake: SHA-256
+`6d3c073282ccb9cc41b279bf24a21c8d02b54d60a3dede8c8ae2ca217d320fde`.
+Skripta koristi postojeće NumPy i DTAIDistance zavisnosti; nisu potrebne nove
+biblioteke. Detaljni rezultati, pojedinačni vantrening skorovi i potvrde
+kontrola generišu se u `output/feedback_pattern_experiment.json`.
+
+```powershell
+.\venv\Scripts\python.exe scripts\evaluate_feedback_patterns.py
+```
+
+Skripta čita bazu u read-only režimu, proverava da se CSV nije promenio tokom
+izvršavanja i upisuje samo izveštaj eksperimenta. Ne koristi stare `score`
+kolone iz različitih verzija kao da su jedna ista mera.
+
+## Raniji zaključak za nastavak rada (septembarski pilot)
 
 Najbrži opravdan put je mali, jasno dokumentovan dataset koji je čovek preslušao i potvrdio, uz automatizaciju predlaganja i izvoza. Trenutni rezultati ne podržavaju tvrdnju da je pronađen pouzdan automatski klasifikator. To ne poništava dataset: algoritamski kandidati i muzički potvrđeni parovi imaju različite uloge.
 
