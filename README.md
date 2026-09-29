@@ -2,26 +2,25 @@
 
 JazzDialog je naučno-istraživački Python projekat čiji je cilj izgradnja dataseta **call-and-response parova u jazzu**.
 
-## Konačno izdanje baze
+## Baza i rad
 
-Verzionisana baza je u folderu [`dataset/`](dataset/):
+- [`dataset/jazzdialog.csv`](dataset/jazzdialog.csv) - 114 potvrđenih parova, redom po izvođaču i naslovu, sa brojevima 1-114.
+- [`dataset/midi/`](dataset/midi/) - za red 1 slušaj `jazzdia-1.mid`, za red 2 `jazzdia-2.mid`, itd. Svaki fajl ima CALL i RESPONSE traku.
+- [`dataset/jazzdialog_midi.zip`](dataset/jazzdialog_midi.zip) - CSV, potpuni JSON i svi MIDI fajlovi u jednom paketu.
+- [`dataset/DATASET_CARD.md`](dataset/DATASET_CARD.md) - objašnjenje kolona, poreklo i ograničenja baze.
+- [`DRAFT_RADA.md`](DRAFT_RADA.md) - tekst naučnog rada za pregled; Word i PDF su u [`rad/`](rad/).
 
-- `jazzdialog_v1.0.csv` — 109 ručno potvrđenih parova, azbučno sortiranih po izvođaču i pesmi, sa `JD0001`–`JD0109` identifikatorima;
-- `jazzdialog_v1.0.json` — potpuni zapis nota, trajanja i granica;
-- `jazzdialog_v1.0_midi.zip` — prenosivi MIDI isečci sa odvojenim CALL i RESPONSE trakama;
-- `DATASET_CARD.md` — poreklo, schema, način anotiranja, ograničenja, licence i reference.
+Baza sadrži samo potvrđene primere. Radne DA/NE oznake ostaju odvojene u `output/wjd_phrase_call_response.csv`. Za mašinsku analizu koristi `dataset/jazzdialog.json`, gde su i pojedinačna trajanja nota i informacije o preklapanju. Trening i test razdvajaj po `wjd_melid`, ne po redovima.
 
-Svaki red je eksplicitno ručno označen kao validan `DA`. `wjd_melid` i
-`source_pair_id` čuvaju vezu sa izvornom Weimar Jazz Database anotacijom;
-`evaluation_group` sprečava da isti solo bude podeljen između treninga i testa.
-`overlap_group` označava različite potvrđene granice koje se geometrijski
-preklapaju.
-
-Za ponovnu izgradnju celog izdanja iz kanonskog review CSV-a pokreni:
+Za ponovnu izgradnju baze:
 
 ```powershell
 .\venv\Scripts\python.exe scripts\export_reviewed_dataset.py --release
 ```
+
+Brojevi važe za ovaj raspored: novo abecedno sortiranje nakon dodavanja parova može ih promeniti. Trajnu vezu sa izvorom čine WJD broj i granice nota.
+
+## Razvojni postupak
 
 Aktuelna detekcija poredi call i response unutar jedne zvanične WJD fraze pomoću globalnog DTW-a i incipita. Za nove kandidate traži najmanje 5 nota po segmentu, ograničava odnos dužina call-a i response-a i pamti ručno označene `NE` podele. Spajanje susednih WJD fraza je isključeno za nove kandidate, dok raniji ručno označeni redovi preko granice ostaju sačuvani u CSV-u kao istorijski primeri.
 

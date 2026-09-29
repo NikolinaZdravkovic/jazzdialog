@@ -1,29 +1,18 @@
 {
   "source_file": "jazzdialog3(4).xlsx",
   "source_sha256": "5840c5d6ba3cc983662764f40d2e8ee7ea547062ad29596c3992338abc18a2c1",
-  "status": "manual_reference_mapping_proposals",
-  "policy": "Original spreadsheet preserved. Unique pitch matches require boundary/rhythm review before merging into confirmed dataset. Octave shifts are explicit proposals only; missing octaves and tuplet durations are not guessed.",
-  "notation_context": {
-    "underscore": "tied notes; merged within a segment only",
-    "tilde": "slide; both written pitches retained",
-    "manual_17_duration": "User previously corrected D5(1/14) to D5(1/4); raw text retained, durations not used for matching",
-    "tuplets": "Original T5/T6 notation preserved; no timing reconstructed"
-  },
+  "purpose": "Audit of user-requested manual-reference import on 2026-09-28",
   "counts": {
-    "anchored_shape_proposal_requires_review": 1,
-    "empty_template_row": 8,
-    "external_source_requires_recording_identity": 8,
+    "already_confirmed": 6,
     "incomplete_pair": 1,
-    "near_exact_pitch_proposal_requires_review": 1,
-    "no_exact_pitch_match": 3,
-    "notation_requires_review": 1,
-    "octave_shift_requires_review": 1,
-    "tied_boundary_pitch_proposal_requires_review": 1,
-    "unique_exact_pitch_proposal": 4
+    "mapped_exact_after_transposition": 3,
+    "mapped_source_score_checked": 4,
+    "recording_not_in_wjd": 7
   },
+  "added": 5,
   "records": [
     {
-      "id": "manual:1",
+      "manual_id": 1,
       "excel_row": 2,
       "original": {
         "pair_id": "1.0",
@@ -37,29 +26,10 @@
         "response_notes": "A5(1/8)[A] E5(1/8T)[D] F#5(1/8T)[D] A5(1/8T)[D] E5(1/8T)[D] D#5(1/8T)[D] E5(1/3)[D] D5(1/8)[D] C#5(5/8)[D->C#7#9]",
         "time_signature": "4/4"
       },
-      "candidates": [],
-      "call_pitches": [
-        78,
-        76,
-        81,
-        76
-      ],
-      "response_pitches": [
-        81,
-        76,
-        78,
-        81,
-        76,
-        75,
-        76,
-        74,
-        73
-      ],
-      "notation_issues": [],
-      "status": "external_source_requires_recording_identity"
+      "status": "recording_not_in_wjd"
     },
     {
-      "id": "manual:2",
+      "manual_id": 2,
       "excel_row": 3,
       "original": {
         "pair_id": "2.0",
@@ -73,20 +43,10 @@
         "response_notes": "C#5(3/4)[G#m7(b5)] G#4(1/4)[C#7] B4(2/4)[F#m7]",
         "time_signature": "4/4"
       },
-      "candidates": [],
-      "call_pitches": [
-        73
-      ],
-      "response_pitches": [
-        73,
-        68,
-        71
-      ],
-      "notation_issues": [],
-      "status": "external_source_requires_recording_identity"
+      "status": "recording_not_in_wjd"
     },
     {
-      "id": "manual:3",
+      "manual_id": 3,
       "excel_row": 4,
       "original": {
         "pair_id": "3.0",
@@ -100,25 +60,10 @@
         "response_notes": "C#5(1/8)[Bm7] E5(1/8T)[Bm7] F5(1/8T)[Bm7] F#5(1/8T)[Bm7] C#5(1/8)[Bm7] E5(1/8)[Bm7] D5(1/8)[E7]",
         "time_signature": "4/4"
       },
-      "candidates": [],
-      "call_pitches": [
-        74,
-        76
-      ],
-      "response_pitches": [
-        73,
-        76,
-        77,
-        78,
-        73,
-        76,
-        74
-      ],
-      "notation_issues": [],
-      "status": "external_source_requires_recording_identity"
+      "status": "recording_not_in_wjd"
     },
     {
-      "id": "manual:4",
+      "manual_id": 4,
       "excel_row": 5,
       "original": {
         "pair_id": "4.0",
@@ -132,30 +77,37 @@
         "response_notes": "F5(1/8)[F7] Ab5(1/8)[Bb7] F5(1/8)[Bb7] Bb5(1/16)[Bb7] Ab5(1/16)[Bb7] C6(1/4)[Bb7] F5(1/8)[Bb7]",
         "time_signature": "4/4"
       },
-      "candidates": [],
-      "call_pitches": [
-        84,
-        82,
-        84,
-        77,
-        81,
-        82,
-        84
+      "candidates": [
+        {
+          "melid": 216,
+          "left": 0,
+          "split": 7,
+          "right": 14,
+          "transpose": -14,
+          "differences": [],
+          "inferred_octaves": [],
+          "tied_boundary": false,
+          "median_onset_error_beats": 0.0798284021572564,
+          "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
+        }
       ],
-      "response_pitches": [
-        77,
-        80,
-        77,
-        82,
-        80,
-        84,
-        77
-      ],
-      "notation_issues": [],
-      "status": "external_source_requires_recording_identity"
+      "status": "mapped_exact_after_transposition",
+      "mapping": {
+        "melid": 216,
+        "left": 0,
+        "split": 7,
+        "right": 14,
+        "transpose": -14,
+        "differences": [],
+        "inferred_octaves": [],
+        "tied_boundary": false,
+        "median_onset_error_beats": 0.0798284021572564,
+        "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
+      },
+      "source_pair_id": "wjd:216:0:7:14"
     },
     {
-      "id": "manual:5",
+      "manual_id": 5,
       "excel_row": 6,
       "original": {
         "pair_id": "5.0",
@@ -169,26 +121,10 @@
         "response_notes": "R(1/8)[G] C#5(1/8)[G] D5(1/4)[G] B4(1/2)[G] C5(1/4)[Ab7] Ab4(1/4)[Ab7] R(2/4)[Ab7]",
         "time_signature": "4/4"
       },
-      "candidates": [],
-      "call_pitches": [
-        76,
-        74,
-        71,
-        72,
-        75
-      ],
-      "response_pitches": [
-        73,
-        74,
-        71,
-        72,
-        68
-      ],
-      "notation_issues": [],
-      "status": "external_source_requires_recording_identity"
+      "status": "recording_not_in_wjd"
     },
     {
-      "id": "manual:6",
+      "manual_id": 6,
       "excel_row": 7,
       "original": {
         "pair_id": "6.0",
@@ -202,46 +138,10 @@
         "response_notes": "F(3/8)[Ab7] Eb(1/8)[Ab7] F(1/4)[Ab7] Eb(1/4)[Ab7] D(7/8)[G] B(1/8)[G] C(2/4)[Bb7] C(1/8)[Bb7] Eb(1/8)[Bb7] D(1/8)[Bb7] C(1/8)[Bb7] B(1/4)[G] G(1/4)[G] G(2/4)[G] R(4/4)[none]",
         "time_signature": "4/4"
       },
-      "candidates": [],
-      "call_pitches": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "response_pitches": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "notation_issues": [
-        "missing_octave"
-      ],
-      "status": "external_source_requires_recording_identity"
+      "status": "recording_not_in_wjd"
     },
     {
-      "id": "manual:7",
+      "manual_id": 7,
       "excel_row": 8,
       "original": {
         "pair_id": "7.0",
@@ -255,37 +155,10 @@
         "response_notes": "R(1/4)[G] D(1/4)[G] G(1/4)[G] R(1/4)[G] R(1/8)[Bb7] F(1/8)[Bb7] D(1/8)[Bb7] C#(3/8)[Bb7] C(1/4)[Bb7] Bb(2/4)[G] Bb(1/8)[G] R(3/8)[G]",
         "time_signature": "4/4"
       },
-      "candidates": [],
-      "call_pitches": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "response_pitches": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "notation_issues": [
-        "missing_octave"
-      ],
-      "status": "external_source_requires_recording_identity"
+      "status": "recording_not_in_wjd"
     },
     {
-      "id": "manual:8",
+      "manual_id": 8,
       "excel_row": 9,
       "original": {
         "pair_id": "8.0",
@@ -299,25 +172,10 @@
         "response_notes": "R(1/8)[Ab7] G(3/8)[Ab7] Eb(1/4)[Ab7] D(1/4)[Ab7] F#(3/8)[G] D(3/4)[G]",
         "time_signature": "4/4"
       },
-      "candidates": [],
-      "call_pitches": [
-        null,
-        null
-      ],
-      "response_pitches": [
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "notation_issues": [
-        "missing_octave"
-      ],
-      "status": "external_source_requires_recording_identity"
+      "status": "recording_not_in_wjd"
     },
     {
-      "id": "manual:9",
+      "manual_id": 9,
       "excel_row": 10,
       "original": {
         "pair_id": "9.0",
@@ -333,54 +191,31 @@
       },
       "candidates": [
         {
-          "call_start": 44,
-          "call_end_exclusive": 52,
-          "response_start": 52,
-          "response_end_exclusive": 61,
-          "call_start_seconds": 23.496938775510205,
-          "response_start_seconds": 27.071428571428573,
-          "end_seconds": 29.946485260770974,
-          "gap_notes": 0,
-          "wjd_phrases": [
-            "3"
-          ],
-          "fits_one_wjd_phrase": true,
-          "existing_annotations": [
-            {
-              "id": "wjd:70:44:52:61",
-              "label": "DA",
-              "midi": "output/wjd_phrase_excerpts/melid_70_phrase_3_start_23_split_31_end_40.mid"
-            }
-          ]
+          "melid": 70,
+          "left": 44,
+          "split": 52,
+          "right": 61,
+          "transpose": 0,
+          "differences": [],
+          "inferred_octaves": [],
+          "tied_boundary": false
         }
       ],
-      "call_pitches": [
-        62,
-        63,
-        59,
-        62,
-        60,
-        63,
-        59,
-        62
-      ],
-      "response_pitches": [
-        60,
-        63,
-        65,
-        62,
-        64,
-        65,
-        64,
-        63,
-        62
-      ],
-      "notation_issues": [],
-      "melid": 70,
-      "status": "unique_exact_pitch_proposal"
+      "status": "already_confirmed",
+      "source_pair_id": "wjd:70:44:52:61",
+      "mapping": {
+        "melid": 70,
+        "left": 44,
+        "split": 52,
+        "right": 61,
+        "transpose": 0,
+        "differences": [],
+        "inferred_octaves": [],
+        "tied_boundary": false
+      }
     },
     {
-      "id": "manual:10",
+      "manual_id": 10,
       "excel_row": 11,
       "original": {
         "pair_id": "10.0",
@@ -396,50 +231,35 @@
       },
       "candidates": [
         {
-          "call_start": 86,
-          "call_end_exclusive": 93,
-          "response_start": 93,
-          "response_end_exclusive": 99,
-          "call_start_seconds": 45.88979591836735,
-          "response_start_seconds": 48.3004081632653,
-          "end_seconds": 50.20612244897959,
-          "gap_notes": 0,
-          "wjd_phrases": [
-            "6"
-          ],
-          "fits_one_wjd_phrase": true,
-          "existing_annotations": [
-            {
-              "id": "wjd:70:86:93:99",
-              "label": "DA",
-              "midi": "output/wjd_phrase_excerpts/melid_70_phrase_6_split_7.mid"
-            }
-          ]
+          "melid": 70,
+          "left": 86,
+          "split": 93,
+          "right": 99,
+          "transpose": 0,
+          "differences": [],
+          "inferred_octaves": [],
+          "tied_boundary": false,
+          "median_onset_error_beats": 0.029849130152314274,
+          "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
         }
       ],
-      "call_pitches": [
-        65,
-        67,
-        68,
-        70,
-        67,
-        63,
-        60
-      ],
-      "response_pitches": [
-        69,
-        70,
-        66,
-        66,
-        63,
-        58
-      ],
-      "notation_issues": [],
-      "melid": 70,
-      "status": "unique_exact_pitch_proposal"
+      "status": "mapped_exact_after_transposition",
+      "mapping": {
+        "melid": 70,
+        "left": 86,
+        "split": 93,
+        "right": 99,
+        "transpose": 0,
+        "differences": [],
+        "inferred_octaves": [],
+        "tied_boundary": false,
+        "median_onset_error_beats": 0.029849130152314274,
+        "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
+      },
+      "source_pair_id": "wjd:70:86:93:99"
     },
     {
-      "id": "manual:11",
+      "manual_id": 11,
       "excel_row": 12,
       "original": {
         "pair_id": "11.0",
@@ -455,54 +275,31 @@
       },
       "candidates": [
         {
-          "call_start": 0,
-          "call_end_exclusive": 7,
-          "response_start": 7,
-          "response_end_exclusive": 15,
-          "octave_shift_semitones": -12,
-          "call_start_seconds": 4.995918367346939,
-          "response_start_seconds": 8.568163265306122,
-          "end_seconds": 11.481632653061224,
-          "gap_notes": 0,
-          "wjd_phrases": [
-            "1",
-            "2"
-          ],
-          "fits_one_wjd_phrase": false,
-          "existing_annotations": [
-            {
-              "id": "wjd:402:0:7:15",
-              "label": "DA",
-              "midi": "output/wjd_phrase_excerpts/melid_402_phrase_1_2_split_7.mid"
-            }
-          ]
+          "melid": 402,
+          "left": 0,
+          "split": 7,
+          "right": 15,
+          "transpose": -12,
+          "differences": [],
+          "inferred_octaves": [],
+          "tied_boundary": false
         }
       ],
-      "call_pitches": [
-        77,
-        79,
-        80,
-        77,
-        79,
-        72,
-        77
-      ],
-      "response_pitches": [
-        77,
-        79,
-        79,
-        80,
-        77,
-        79,
-        77,
-        73
-      ],
-      "notation_issues": [],
-      "melid": 402,
-      "status": "octave_shift_requires_review"
+      "status": "already_confirmed",
+      "source_pair_id": "wjd:402:0:7:15",
+      "mapping": {
+        "melid": 402,
+        "left": 0,
+        "split": 7,
+        "right": 15,
+        "transpose": -12,
+        "differences": [],
+        "inferred_octaves": [],
+        "tied_boundary": false
+      }
     },
     {
-      "id": "manual:12",
+      "manual_id": 12,
       "excel_row": 13,
       "original": {
         "pair_id": "12.0",
@@ -516,42 +313,61 @@
         "response_notes": "Ab5(1/4)[Fm7] F5(3/8)[Fm7] Ab5(1/8)[Fm7] R(2/4)[Fm7] Ab5(1/4)[Fm6] G5(1/8T)[Fm6] F5(1/8T)[Fm6] E5(1/4)[Fm6] F5(1/8)[Fm6] G5(1/8T)[Fm6] Ab5(1/8T)[Fm6] F5(1/4)[Dbmaj7]",
         "time_signature": "4/4"
       },
-      "candidates": [],
-      "call_pitches": [
-        84,
-        72,
-        80,
-        77,
-        80,
-        80,
-        80,
-        80,
-        76,
-        72,
-        80,
-        null
+      "candidates": [
+        {
+          "melid": 402,
+          "left": 38,
+          "split": 50,
+          "right": 61,
+          "transpose": -12,
+          "differences": [
+            {
+              "index": 10,
+              "expected": 68,
+              "actual": 56
+            }
+          ],
+          "inferred_octaves": [
+            {
+              "index": 11,
+              "spelling": "E",
+              "concert_pitch": 52
+            }
+          ],
+          "tied_boundary": false,
+          "median_onset_error_beats": 0.4795572056455413,
+          "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
+        }
       ],
-      "response_pitches": [
-        80,
-        77,
-        80,
-        80,
-        79,
-        77,
-        76,
-        77,
-        79,
-        80,
-        77
-      ],
-      "notation_issues": [
-        "missing_octave"
-      ],
-      "melid": 402,
-      "status": "notation_requires_review"
+      "status": "mapped_source_score_checked",
+      "mapping": {
+        "melid": 402,
+        "left": 38,
+        "split": 50,
+        "right": 61,
+        "transpose": -12,
+        "differences": [
+          {
+            "index": 10,
+            "expected": 68,
+            "actual": 56
+          }
+        ],
+        "inferred_octaves": [
+          {
+            "index": 11,
+            "spelling": "E",
+            "concert_pitch": 52
+          }
+        ],
+        "tied_boundary": false,
+        "median_onset_error_beats": 0.4795572056455413,
+        "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
+      },
+      "source_pair_id": "wjd:402:38:50:61"
     },
     {
-      "id": "manual:13",
+      "manual_id": 13,
       "excel_row": 14,
       "original": {
         "pair_id": "13.0",
@@ -565,38 +381,59 @@
         "response_notes": "R(2/4)[Fm7] B4(1/16)[Fm7] C5(3/16)[Fm7] B4(1/8)[Fm7] Ab4(1/4)[Fm7] E4(3/16)[Fm7 -> Fm6] G4(1/8)[Fm6] F4(5/16)[Fm6] R(2/4)[Fm6]",
         "time_signature": "4/4"
       },
-      "candidates": [],
-      "call_pitches": [
-        72,
-        71,
-        68,
-        65,
-        68,
-        70,
-        64,
-        67,
-        69,
-        70,
-        72,
-        76,
-        72,
-        69
+      "candidates": [
+        {
+          "melid": 402,
+          "left": 132,
+          "split": 146,
+          "right": 153,
+          "transpose": -12,
+          "differences": [
+            {
+              "index": 8,
+              "expected": 57,
+              "actual": 56
+            },
+            {
+              "index": 13,
+              "expected": 57,
+              "actual": 56
+            }
+          ],
+          "inferred_octaves": [],
+          "tied_boundary": false,
+          "median_onset_error_beats": 0.10467915086827873,
+          "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
+        }
       ],
-      "response_pitches": [
-        71,
-        72,
-        71,
-        68,
-        64,
-        67,
-        65
-      ],
-      "notation_issues": [],
-      "melid": 402,
-      "status": "no_exact_pitch_match"
+      "status": "mapped_source_score_checked",
+      "mapping": {
+        "melid": 402,
+        "left": 132,
+        "split": 146,
+        "right": 153,
+        "transpose": -12,
+        "differences": [
+          {
+            "index": 8,
+            "expected": 57,
+            "actual": 56
+          },
+          {
+            "index": 13,
+            "expected": 57,
+            "actual": 56
+          }
+        ],
+        "inferred_octaves": [],
+        "tied_boundary": false,
+        "median_onset_error_beats": 0.10467915086827873,
+        "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
+      },
+      "source_pair_id": "wjd:402:132:146:153"
     },
     {
-      "id": "manual:14",
+      "manual_id": 14,
       "excel_row": 15,
       "original": {
         "pair_id": "14.0",
@@ -612,61 +449,35 @@
       },
       "candidates": [
         {
-          "call_start": 0,
-          "call_end_exclusive": 8,
-          "response_start": 8,
-          "response_end_exclusive": 24,
-          "call_start_seconds": 3.427845804988662,
-          "response_start_seconds": 5.362358276643991,
-          "end_seconds": 9.077551020408162,
-          "gap_notes": 0,
-          "wjd_phrases": [
-            "1"
-          ],
-          "fits_one_wjd_phrase": true,
-          "existing_annotations": [
-            {
-              "id": "wjd:71:0:8:24",
-              "label": "DA",
-              "midi": "output/wjd_phrase_excerpts/melid_71_phrase_1_split_8.mid"
-            }
-          ]
+          "melid": 71,
+          "left": 0,
+          "split": 8,
+          "right": 24,
+          "transpose": 0,
+          "differences": [],
+          "inferred_octaves": [],
+          "tied_boundary": false,
+          "median_onset_error_beats": 0.5942868475903706,
+          "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
         }
       ],
-      "call_pitches": [
-        64,
-        67,
-        69,
-        71,
-        64,
-        67,
-        69,
-        70
-      ],
-      "response_pitches": [
-        64,
-        67,
-        69,
-        69,
-        70,
-        69,
-        67,
-        65,
-        67,
-        65,
-        63,
-        58,
-        60,
-        62,
-        64,
-        66
-      ],
-      "notation_issues": [],
-      "melid": 71,
-      "status": "unique_exact_pitch_proposal"
+      "status": "mapped_exact_after_transposition",
+      "mapping": {
+        "melid": 71,
+        "left": 0,
+        "split": 8,
+        "right": 24,
+        "transpose": 0,
+        "differences": [],
+        "inferred_octaves": [],
+        "tied_boundary": false,
+        "median_onset_error_beats": 0.5942868475903706,
+        "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
+      },
+      "source_pair_id": "wjd:71:0:8:24"
     },
     {
-      "id": "manual:15",
+      "manual_id": 15,
       "excel_row": 16,
       "original": {
         "pair_id": "15.0",
@@ -682,70 +493,43 @@
       },
       "candidates": [
         {
-          "call_start": 139,
-          "call_end_exclusive": 155,
-          "response_start": 155,
-          "response_end_exclusive": 166,
-          "one_pitch_mismatch_at": 10,
-          "written_response_pitch": 59,
-          "wjd_response_pitch": 60,
-          "call_start_seconds": 40.41836734693877,
-          "response_start_seconds": 45.08571428571429,
-          "end_seconds": 48.506122448979596,
-          "gap_notes": 0,
-          "wjd_phrases": [
-            "8",
-            "9",
-            "10",
-            "11"
-          ],
-          "fits_one_wjd_phrase": false,
-          "existing_annotations": [
+          "melid": 71,
+          "left": 139,
+          "split": 155,
+          "right": 166,
+          "transpose": 0,
+          "differences": [
             {
-              "id": "wjd:71:139:155:166",
-              "label": "DA",
-              "midi": "output/wjd_phrase_excerpts/manual_15_melid_71.mid"
+              "index": 26,
+              "expected": 59,
+              "actual": 60
             }
-          ]
+          ],
+          "inferred_octaves": [],
+          "tied_boundary": false
         }
       ],
-      "call_pitches": [
-        76,
-        74,
-        71,
-        69,
-        67,
-        69,
-        66,
-        67,
-        67,
-        69,
-        66,
-        67,
-        69,
-        71,
-        67,
-        69
-      ],
-      "response_pitches": [
-        74,
-        71,
-        74,
-        71,
-        69,
-        67,
-        59,
-        63,
-        57,
-        59,
-        59
-      ],
-      "notation_issues": [],
-      "melid": 71,
-      "status": "near_exact_pitch_proposal_requires_review"
+      "status": "already_confirmed",
+      "source_pair_id": "wjd:71:139:155:166",
+      "mapping": {
+        "melid": 71,
+        "left": 139,
+        "split": 155,
+        "right": 166,
+        "transpose": 0,
+        "differences": [
+          {
+            "index": 26,
+            "expected": 59,
+            "actual": 60
+          }
+        ],
+        "inferred_octaves": [],
+        "tied_boundary": false
+      }
     },
     {
-      "id": "manual:16",
+      "manual_id": 16,
       "excel_row": 17,
       "original": {
         "pair_id": "16.0",
@@ -759,56 +543,19 @@
         "response_notes": "R(1/4)[Em7(b5)] G5(1/4)[Em7(b5)] F5(2/4)[Em7(b5)] A5(1/8)[Em7(b5)] A5(1/4)[A7] G5(1/16)[A7] E5(5/16)[A7] C#5(1/8)[A7] F5(1/4)[A7] D5(1/8)[A7] D5(2/4)[Dm7] ",
         "time_signature": "4/4"
       },
-      "candidates": [
-        {
-          "call_start": 19,
-          "call_end_exclusive": 24,
-          "response_start": 24,
-          "response_end_exclusive": 34,
-          "response_shape_dtw": 0.18181818181818182,
-          "call_start_seconds": 8.187755102040816,
-          "response_start_seconds": 11.932154195011337,
-          "end_seconds": 15.703061224489796,
-          "gap_notes": 0,
-          "wjd_phrases": [
-            "1",
-            "2"
-          ],
-          "fits_one_wjd_phrase": false,
-          "existing_annotations": [
-            {
-              "id": "wjd:72:19:24:34",
-              "label": "DA",
-              "midi": "output/wjd_phrase_excerpts/manual_16_melid_72.mid"
-            }
-          ]
-        }
-      ],
-      "call_pitches": [
-        64,
-        67,
-        65,
-        69,
-        64
-      ],
-      "response_pitches": [
-        79,
-        77,
-        81,
-        81,
-        79,
-        76,
-        73,
-        77,
-        74,
-        74
-      ],
-      "notation_issues": [],
-      "melid": 72,
-      "status": "anchored_shape_proposal_requires_review"
+      "candidates": [],
+      "status": "already_confirmed",
+      "source_pair_id": "wjd:72:19:24:34",
+      "mapping": {
+        "melid": 72,
+        "left": 19,
+        "split": 24,
+        "right": 34,
+        "note": "Previously verified by listening; original response differs."
+      }
     },
     {
-      "id": "manual:17",
+      "manual_id": 17,
       "excel_row": 18,
       "original": {
         "pair_id": "17.0",
@@ -824,67 +571,31 @@
       },
       "candidates": [
         {
-          "call_start": 39,
-          "call_end_exclusive": 56,
-          "response_start": 56,
-          "response_end_exclusive": 67,
-          "shared_tied_pitch": 70,
-          "call_start_seconds": 15.16843537414966,
-          "response_start_seconds": 18.634013605442178,
-          "end_seconds": 21.40879818594104,
-          "gap_notes": 0,
-          "wjd_phrases": [
-            "4"
-          ],
-          "fits_one_wjd_phrase": true,
-          "existing_annotations": [
-            {
-              "id": "wjd:73:39:56:67",
-              "label": "DA",
-              "midi": "output/wjd_phrase_excerpts/manual_17_melid_73.mid"
-            }
-          ]
+          "melid": 73,
+          "left": 39,
+          "split": 56,
+          "right": 67,
+          "transpose": 0,
+          "differences": [],
+          "inferred_octaves": [],
+          "tied_boundary": true
         }
       ],
-      "call_pitches": [
-        70,
-        73,
-        74,
-        70,
-        67,
-        63,
-        67,
-        70,
-        71,
-        72,
-        69,
-        65,
-        62,
-        65,
-        69,
-        69,
-        70
-      ],
-      "response_pitches": [
-        70,
-        67,
-        63,
-        60,
-        62,
-        64,
-        65,
-        66,
-        69,
-        66,
-        64,
-        57
-      ],
-      "notation_issues": [],
-      "melid": 73,
-      "status": "tied_boundary_pitch_proposal_requires_review"
+      "status": "already_confirmed",
+      "source_pair_id": "wjd:73:39:56:67",
+      "mapping": {
+        "melid": 73,
+        "left": 39,
+        "split": 56,
+        "right": 67,
+        "transpose": 0,
+        "differences": [],
+        "inferred_octaves": [],
+        "tied_boundary": true
+      }
     },
     {
-      "id": "manual:18",
+      "manual_id": 18,
       "excel_row": 19,
       "original": {
         "pair_id": "18.0",
@@ -898,68 +609,49 @@
         "response_notes": "B4(1/16)[Eb7] C5(1/8)[Eb7] G5(1/16)[Eb7] Ab5(1/4)[Eb7] G5(1/8)[Ab] Ab5(1/8)[Ab] G5(1/8T)[Ab] Ab5(1/8T)[Ab] G5(1/8T)[Ab] G5(1/16)[Ab] Ab5(1/16)[Ab] G5(1/8)[Ab] F5(1/8)[Ab] E5(1/8)[Ab] Eb5(1/4T)[F7] Db5(1/8T)[F7] C5(1/8)[F7] Bb4(1/8)[F7] A4(1/8)[F7] Gb5(1/4)[F7] E5(1/16)[F7] F5(1/16)[F7] _ F5(1/8)[Bb7] D5(1/8)[Bb7] Bb4(1/8)[Bb7] Ab4(1/8)[Bb7] C5(3/8)[Bb7] R(1/8)[Bb7]",
         "time_signature": "4/4"
       },
-      "candidates": [],
-      "call_pitches": [
-        71,
-        72,
-        75,
-        79,
-        80,
-        79,
-        80,
-        80,
-        79,
-        80,
-        79,
-        80,
-        70,
-        72,
-        75,
-        79,
-        80,
-        75,
-        79,
-        80,
-        80,
-        79,
-        80,
-        79,
-        80
+      "candidates": [
+        {
+          "melid": 55,
+          "left": 160,
+          "split": 185,
+          "right": 211,
+          "transpose": -12,
+          "differences": [
+            {
+              "index": 12,
+              "expected": 58,
+              "actual": 59
+            }
+          ],
+          "inferred_octaves": [],
+          "tied_boundary": false,
+          "median_onset_error_beats": 0.0851320225357286,
+          "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
+        }
       ],
-      "response_pitches": [
-        71,
-        72,
-        79,
-        80,
-        79,
-        80,
-        79,
-        80,
-        79,
-        79,
-        80,
-        79,
-        77,
-        76,
-        75,
-        73,
-        72,
-        70,
-        69,
-        78,
-        76,
-        77,
-        74,
-        70,
-        68,
-        72
-      ],
-      "notation_issues": [],
-      "melid": 55,
-      "status": "no_exact_pitch_match"
+      "status": "mapped_source_score_checked",
+      "mapping": {
+        "melid": 55,
+        "left": 160,
+        "split": 185,
+        "right": 211,
+        "transpose": -12,
+        "differences": [
+          {
+            "index": 12,
+            "expected": 58,
+            "actual": 59
+          }
+        ],
+        "inferred_octaves": [],
+        "tied_boundary": false,
+        "median_onset_error_beats": 0.0851320225357286,
+        "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
+      },
+      "source_pair_id": "wjd:55:160:185:211"
     },
     {
-      "id": "manual:19",
+      "manual_id": 19,
       "excel_row": 20,
       "original": {
         "pair_id": "19.0",
@@ -973,47 +665,59 @@
         "response_notes": "Gb4(1/8)[Bb] A4(1/4)[Bb] Eb5(1/4)[Ab] G4(1/8)[Ab] A4(1/8)[Ab] D5(1/8)[Ab] C5(1/8)[G7] G4(1/8)[G7] Eb4(1/4)[G7] G4(1/8)[Cm] C4(1/8)[Cm] Eb4(1/8)[Cm] E4(1/16)[Cm] Gb4(1/16)[Cm] Ab4(1/16)[Cm] A4(1/8T)[Cm] Bb4(1/8T)[Cm] C5(1/8T)[Cm] _ C5(1/8)[Cm] G4(1/8)[Cm] _ G4(3/8)[Ab] F4(1/8)[Ab] Ab4(3/16)[G7] F4(1/16)[G7] R(1/4)[G7]",
         "time_signature": "4/4"
       },
-      "candidates": [],
-      "call_pitches": [
-        79,
-        75,
-        67,
-        69,
-        74,
-        67,
-        68,
-        72
+      "candidates": [
+        {
+          "melid": 282,
+          "left": 127,
+          "split": 135,
+          "right": 157,
+          "transpose": -12,
+          "differences": [
+            {
+              "index": 0,
+              "expected": 67,
+              "actual": 55
+            },
+            {
+              "index": 6,
+              "expected": 56,
+              "actual": 57
+            }
+          ],
+          "inferred_octaves": [],
+          "tied_boundary": false,
+          "median_onset_error_beats": 0.553417300765453,
+          "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
+        }
       ],
-      "response_pitches": [
-        66,
-        69,
-        75,
-        67,
-        69,
-        74,
-        72,
-        67,
-        63,
-        67,
-        60,
-        63,
-        64,
-        66,
-        68,
-        69,
-        70,
-        72,
-        67,
-        65,
-        68,
-        65
-      ],
-      "notation_issues": [],
-      "melid": 282,
-      "status": "no_exact_pitch_match"
+      "status": "mapped_source_score_checked",
+      "mapping": {
+        "melid": 282,
+        "left": 127,
+        "split": 135,
+        "right": 157,
+        "transpose": -12,
+        "differences": [
+          {
+            "index": 0,
+            "expected": 67,
+            "actual": 55
+          },
+          {
+            "index": 6,
+            "expected": 56,
+            "actual": 57
+          }
+        ],
+        "inferred_octaves": [],
+        "tied_boundary": false,
+        "median_onset_error_beats": 0.553417300765453,
+        "timing_note": "Descriptive onset check; WJD timings exported unchanged. T5/T6 timing not guessed."
+      },
+      "source_pair_id": "wjd:282:127:135:157"
     },
     {
-      "id": "manual:20",
+      "manual_id": 20,
       "excel_row": 21,
       "original": {
         "pair_id": "20.0",
@@ -1029,61 +733,31 @@
       },
       "candidates": [
         {
-          "call_start": 132,
-          "call_end_exclusive": 146,
-          "response_start": 146,
-          "response_end_exclusive": 156,
-          "call_start_seconds": 39.88607709750567,
-          "response_start_seconds": 43.4969387755102,
-          "end_seconds": 46.19609977324263,
-          "gap_notes": 0,
-          "wjd_phrases": [
-            "8"
-          ],
-          "fits_one_wjd_phrase": true,
-          "existing_annotations": [
-            {
-              "id": "wjd:74:132:146:156",
-              "label": "DA",
-              "midi": "output/wjd_phrase_excerpts/melid_74_phrase_8_start_0_split_14_end_24.mid"
-            }
-          ]
+          "melid": 74,
+          "left": 132,
+          "split": 146,
+          "right": 156,
+          "transpose": 0,
+          "differences": [],
+          "inferred_octaves": [],
+          "tied_boundary": false
         }
       ],
-      "call_pitches": [
-        67,
-        65,
-        67,
-        65,
-        67,
-        65,
-        67,
-        65,
-        67,
-        65,
-        68,
-        65,
-        68,
-        65
-      ],
-      "response_pitches": [
-        67,
-        65,
-        67,
-        65,
-        67,
-        65,
-        76,
-        74,
-        76,
-        74
-      ],
-      "notation_issues": [],
-      "melid": 74,
-      "status": "unique_exact_pitch_proposal"
+      "status": "already_confirmed",
+      "source_pair_id": "wjd:74:132:146:156",
+      "mapping": {
+        "melid": 74,
+        "left": 132,
+        "split": 146,
+        "right": 156,
+        "transpose": 0,
+        "differences": [],
+        "inferred_octaves": [],
+        "tied_boundary": false
+      }
     },
     {
-      "id": "manual:21",
+      "manual_id": 21,
       "excel_row": 22,
       "original": {
         "pair_id": "21.0",
@@ -1094,87 +768,7 @@
         "call_instrument": "trumpet",
         "call_notes": "R()[] A5()[]"
       },
-      "candidates": [],
-      "call_pitches": [
-        81
-      ],
-      "response_pitches": [],
-      "notation_issues": [
-        "missing_duration"
-      ],
       "status": "incomplete_pair"
-    },
-    {
-      "id": "manual:22",
-      "excel_row": 23,
-      "original": {
-        "pair_id": "22.0"
-      },
-      "candidates": [],
-      "status": "empty_template_row"
-    },
-    {
-      "id": "manual:23",
-      "excel_row": 24,
-      "original": {
-        "pair_id": "23.0"
-      },
-      "candidates": [],
-      "status": "empty_template_row"
-    },
-    {
-      "id": "manual:24",
-      "excel_row": 25,
-      "original": {
-        "pair_id": "24.0"
-      },
-      "candidates": [],
-      "status": "empty_template_row"
-    },
-    {
-      "id": "manual:25",
-      "excel_row": 26,
-      "original": {
-        "pair_id": "25.0"
-      },
-      "candidates": [],
-      "status": "empty_template_row"
-    },
-    {
-      "id": "manual:26",
-      "excel_row": 27,
-      "original": {
-        "pair_id": "26.0"
-      },
-      "candidates": [],
-      "status": "empty_template_row"
-    },
-    {
-      "id": "manual:27",
-      "excel_row": 28,
-      "original": {
-        "pair_id": "27.0"
-      },
-      "candidates": [],
-      "status": "empty_template_row"
-    },
-    {
-      "id": "manual:28",
-      "excel_row": 29,
-      "original": {
-        "pair_id": "28.0"
-      },
-      "candidates": [],
-      "status": "empty_template_row"
-    },
-    {
-      "id": "manual:29",
-      "excel_row": 30,
-      "original": {
-        "pair_id": "29.0"
-      },
-      "candidates": [],
-      "status": "empty_template_row"
     }
   ]
 }

@@ -1,0 +1,139 @@
+{
+  "all_automatic_solo": {
+    "dtw_incipit": {
+      "mean_precision_percent": 42.77777777777778,
+      "seed_precision_percent": [
+        40.0,
+        45.0,
+        43.333333333333336
+      ]
+    },
+    "existing_ne_penalty": {
+      "mean_precision_percent": 43.333333333333336,
+      "seed_precision_percent": [
+        41.66666666666667,
+        45.0,
+        43.333333333333336
+      ]
+    },
+    "existing_ranker": {
+      "mean_precision_percent": 56.111111111111114,
+      "seed_precision_percent": [
+        55.00000000000001,
+        56.666666666666664,
+        56.666666666666664
+      ]
+    },
+    "refitted_ranker": {
+      "mean_precision_percent": 54.44444444444445,
+      "seed_precision_percent": [
+        53.333333333333336,
+        53.333333333333336,
+        56.666666666666664
+      ]
+    },
+    "pattern_rate": {
+      "mean_precision_percent": 35.0,
+      "seed_precision_percent": [
+        35.0,
+        30.0,
+        40.0
+      ]
+    },
+    "soft_pattern_penalty": {
+      "mean_precision_percent": 53.888888888888886,
+      "seed_precision_percent": [
+        55.00000000000001,
+        50.0,
+        56.666666666666664
+      ]
+    },
+    "soft_neighbor_penalty": {
+      "mean_precision_percent": 53.333333333333336,
+      "seed_precision_percent": [
+        53.333333333333336,
+        50.0,
+        56.666666666666664
+      ]
+    },
+    "interval_ranker": {
+      "mean_precision_percent": 45.555555555555564,
+      "seed_precision_percent": [
+        41.66666666666667,
+        46.666666666666664,
+        48.333333333333336
+      ]
+    }
+  },
+  "mlu_only_solo": {
+    "dtw_incipit": {
+      "mean_precision_percent": 44.666666666666664,
+      "seed_precision_percent": [
+        42.0,
+        48.0,
+        44.0
+      ]
+    },
+    "existing_ne_penalty": {
+      "mean_precision_percent": 46.0,
+      "seed_precision_percent": [
+        46.0,
+        48.0,
+        44.0
+      ]
+    },
+    "existing_ranker": {
+      "mean_precision_percent": 54.666666666666664,
+      "seed_precision_percent": [
+        52.0,
+        54.0,
+        57.99999999999999
+      ]
+    },
+    "refitted_ranker": {
+      "mean_precision_percent": 56.0,
+      "seed_precision_percent": [
+        52.0,
+        57.99999999999999,
+        57.99999999999999
+      ]
+    },
+    "pattern_rate": {
+      "mean_precision_percent": 31.333333333333332,
+      "seed_precision_percent": [
+        26.0,
+        38.0,
+        30.0
+      ]
+    },
+    "soft_pattern_penalty": {
+      "mean_precision_percent": 56.0,
+      "seed_precision_percent": [
+        52.0,
+        57.99999999999999,
+        57.99999999999999
+      ]
+    },
+    "soft_neighbor_penalty": {
+      "mean_precision_percent": 54.666666666666664,
+      "seed_precision_percent": [
+        54.0,
+        56.00000000000001,
+        54.0
+      ]
+    },
+    "interval_ranker": {
+      "mean_precision_percent": 42.666666666666664,
+      "seed_precision_percent": [
+        42.0,
+        46.0,
+        40.0
+      ]
+    }
+  },
+  "annotation_count": 114,
+  "within_phrase": 26,
+  "across_phrases": 88,
+  "experiment_source_sha256": "6d3c073282ccb9cc41b279bf24a21c8d02b54d60a3dede8c8ae2ca217d320fde",
+  "labelled_source_sha256": "963001cdef836a41d59e5c6f4fed84317688614aec4607712ebe8738ae543f85"
+}
