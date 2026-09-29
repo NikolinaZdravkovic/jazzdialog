@@ -127,8 +127,10 @@ def picture(doc, path, caption):
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_before = Pt(2)
     p.paragraph_format.space_after = Pt(1)
+    p.paragraph_format.keep_with_next = True
     p.add_run().add_picture(str(path), width=Cm(7.55))
     c = para(doc, caption, "Caption", WD_ALIGN_PARAGRAPH.JUSTIFY)
+    c.paragraph_format.keep_together = True
     c.paragraph_format.space_after = Pt(3)
 
 
