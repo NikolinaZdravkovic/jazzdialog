@@ -7,12 +7,16 @@ __pycache__/
 # WJD baza i izvorni MIDI podaci preuzimaju se odvojeno
 /data_midi/*
 
-# Generisani rezultati; rucno anotirani CSV ostaje u Git-u
+# Generisani razvojni rezultati ostaju lokalni.
 /output/*
-!/output/wjd_phrase_call_response.csv
-!/output/reviewed_dataset.json
-!/output/manual_reference_mapping.json
-!/output/automatic_high_confidence_candidates.csv
+
+# Lokalni nacrti i fajlovi za pisanje rada nisu deo javne baze.
+/rad/
+/DRAFT_*.md
+/RESEARCH.md
+/scripts/build_paper.py
+/scripts/build_ieeestec_paper.py
+/scripts/build_jazzdialog_rad.py
 
 # Lokalna podesavanja editora i operativnog sistema
 /.vscode/

@@ -1,144 +1,46 @@
 # JazzDialog
 
-JazzDialog je naučno-istraživački Python projekat čiji je cilj izgradnja dataseta **call-and-response parova u jazzu**.
+JazzDialog je skup ručno potvrđenih call-and-response parova izdvojenih iz transkribovanih jazz improvizacija. Projekat povezuje računarsku analizu sa slušanjem: program predlaže i rangira kandidate, a muzičku smislenost svakog para potvrđuje čovek.
 
-## Baza i rad
+## Postupak
 
-- [`dataset/jazzdialog.csv`](dataset/jazzdialog.csv) - 114 potvrđenih parova, redom po izvođaču i naslovu, sa brojevima 1-114.
-- [`dataset/midi/`](dataset/midi/) - za red 1 slušaj `jazzdia-1.mid`, za red 2 `jazzdia-2.mid`, itd. Svaki fajl ima CALL i RESPONSE traku.
-- [`dataset/jazzdialog_midi.zip`](dataset/jazzdialog_midi.zip) - CSV, potpuni JSON i svi MIDI fajlovi u jednom paketu.
-- [`dataset/DATASET_CARD.md`](dataset/DATASET_CARD.md) - objašnjenje kolona, poreklo i ograničenja baze.
-- [`DRAFT_RADA.md`](DRAFT_RADA.md) - tekst naučnog rada za pregled; Word i PDF su u [`rad/`](rad/).
+```text
+transkribovani solo → kandidati → numeričke osobine → rangiranje → slušanje i ručna potvrda → JazzDialog
+```
 
-Baza sadrži samo potvrđene primere. Radne DA/NE oznake ostaju odvojene u `output/wjd_phrase_call_response.csv`. Za mašinsku analizu koristi `dataset/jazzdialog.json`, gde su i pojedinačna trajanja nota i informacije o preklapanju. Trening i test razdvajaj po `wjd_melid`, ne po redovima.
+Melodijska sličnost sama po sebi, uključujući DTW, nije dovoljna da pouzdano odredi call-and-response odnos. Rangiranje zato služi da odredi redosled ručnog pregleda; nije automatski klasifikator.
 
-Za ponovnu izgradnju baze:
+## Konačna baza
+
+Kolekcija sadrži **114 potvrđenih parova** iz **76 sola**, **73 naslova** i **42 izvođača**.
+
+- [`dataset/jazzdialog.csv`](dataset/jazzdialog.csv) — glavna tabela sa pozitivnim, potvrđenim parovima.
+- [`dataset/jazzdialog.json`](dataset/jazzdialog.json) — prošireni zapis sa notama, trajanjem i poreklom svakog para.
+- [`dataset/midi/`](dataset/midi/) — 114 MIDI isečaka; `jazzdia-1.mid` odgovara prvom redu CSV-a. Svaki isečak ima odvojene CALL i RESPONSE trake.
+- [`dataset/jazzdialog_midi.zip`](dataset/jazzdialog_midi.zip) — prenosivi paket CSV-a, JSON-a i MIDI isečaka.
+- [`dataset/DATASET_CARD.md`](dataset/DATASET_CARD.md) — opis kolona, ograničenja, porekla i citiranja.
+
+Za pregled otvori CSV u Excelu i MIDI fajl iz kolone `midi_file`. Granice nota su nula-indeksirane, a završni indeks je isključiv, pa `notes[start:end]` daje tačno označeni segment.
+
+## Kod
+
+- [`scripts/export_reviewed_dataset.py`](scripts/export_reviewed_dataset.py) — proverava i izvozi konačnu bazu.
+- [`scripts/search_wjd_phrase_splits.py`](scripts/search_wjd_phrase_splits.py) — razvojna pretraga kandidata unutar anotiranih fraza.
+
+Za proveru već napravljenog paketa, bez izvorne baze, pokreni:
+
+```powershell
+.\venv\Scripts\python.exe scripts\export_reviewed_dataset.py --verify-package dataset\jazzdialog_midi.zip
+```
+
+Za ponovni izvoz iz lokalnih radnih ručnih oznaka potrebni su WJD baza u `data_midi/wjazzd.db` i razvojni CSV u `output/`:
 
 ```powershell
 .\venv\Scripts\python.exe scripts\export_reviewed_dataset.py --release
 ```
 
-Brojevi važe za ovaj raspored: novo abecedno sortiranje nakon dodavanja parova može ih promeniti. Trajnu vezu sa izvorom čine WJD broj i granice nota.
+`data_midi/` nije deo repozitorijuma. Razvojni CSV fajlovi u `output/` čuvaju istoriju označavanja i nisu konačna baza.
 
-## Razvojni postupak
+## Izvor i prava
 
-Aktuelna detekcija poredi call i response unutar jedne zvanične WJD fraze pomoću globalnog DTW-a i incipita. Za nove kandidate traži najmanje 5 nota po segmentu, ograničava odnos dužina call-a i response-a i pamti ručno označene `NE` podele. Spajanje susednih WJD fraza je isključeno za nove kandidate, dok raniji ručno označeni redovi preko granice ostaju sačuvani u CSV-u kao istorijski primeri.
-
-Rezultati se čuvaju u `output/wjd_phrase_call_response.csv`. Svaki kandidat se zatim ručno preslušava i označava:
-
-- `DA` — validan call-and-response par;
-- `NE` — kandidat nije call-and-response;
-- prazno — kandidat još nije pregledan.
-
-Pri svakom pokretanju za svaki red iz CSV-a automatski se generiše MIDI isečak u `output/wjd_phrase_excerpts`. Isečak sadrži samo pronađeni call i response sa originalnim ritmom, a kolona `excerpt_midi` čuva njegovu tačnu putanju.
-
-Raniji ocenjeni CSV redovi i ručne oznake ostaju sačuvani. Nepregledani kandidati zamenjuju se rezultatima novog pokretanja. Ako se CSV promeni tokom pretrage, skripta ga neće prepisati.
-
-Posle izbora kandidata proverava se pauza jednu notu levo/desno od granice. Susedna pauza mora trajati najmanje 0.15 s i biti bar 0.05 s duža od trenutne. Podela se pomera samo ako nova podela zadovoljava postojeće uslove dužine, trajanja i skora. Ovo su eksperimentalni parametri, ne validirana muzička pravila.
-
-Kolone `boundary_original_split` i `boundary_original_score` čuvaju prvobitni rezultat. `boundary_suggested_split` i `boundary_suggested_gap_seconds` prikazuju predlog, a `boundary_status` objašnjava odluku: `shifted_to_breath` znači da je granica pomerena; `review_length_or_duration` ili `review_score` znače da je samo predložena za ručni pregled. U tom slučaju MIDI i pitch nizovi ostaju na stvarnoj granici `split_point_local`. Ručno potvrđene granice se ne pomeraju. Ispravka sa `manual_original_split` blokira staru podelu, ali je ne koristi kao negativan muzički primer.
-
-Za probu bez upisa ili brisanja fajlova, funkcija `search_wjd_phrases` prihvata `write_outputs=False`.
-
-## Pokretanje
-
-U `SEARCH_ITEMS` unutar `scripts/search_wjd_phrase_splits.py` upiši željene WJD `melid` brojeve, a zatim pokreni:
-
-```powershell
-.\venv\Scripts\python.exe scripts\search_wjd_phrase_splits.py
-```
-
-Potrebni paketi su `dtaidistance` i `pretty_midi`. Datoteka `wjazzd.db` čuva se lokalno u folderu `data_midi` i nije uključena u repozitorijum.
-
-Pre detekcije možeš proveriti koliko fraza u grupi ima dovoljno nota i trajanja:
-
-```powershell
-.\venv\Scripts\python.exe scripts\search_wjd_phrase_splits.py --audit
-```
-
-Opcija `--melids 26 27 28` bira pesme bez menjanja `SEARCH_ITEMS`. Opcija `--dry-run` pokreće detekciju bez upisa ili brisanja CSV/MIDI fajlova. Svako pokretanje prikazuje razloge odbacivanja i najmanji prilagođeni skor po pesmi. „Podobna” znači samo da fraza zadovoljava ograničenja dužine, a ne da je muzički validan CR. Nula rezultata zato nije dokaz da u solu nema CR parova, posebno onih koji prelaze granice WJD fraza.
-
-Ako je serija novih praznih kandidata loša, možeš je ukloniti bez diranja svojih `DA`/`NE` oznaka:
-
-```powershell
-.\venv\Scripts\python.exe scripts\search_wjd_phrase_splits.py --melids 31 32 33 --discard-unreviewed
-```
-
-Komanda uklanja samo redove bez oznake i samo njihove MIDI isečke. Detektor sada unapred odbacuje identičan call/response i dominantan kratki obrazac ponovljen najmanje tri puta u segmentu; to je zaštita od DTW minimuma nastalih iz ostinato petlji, a ne nova opšta definicija call-response veze.
-
-## Evaluacija ručnih oznaka
-
-Nakon što se kandidati označe sa `DA` ili `NE`, pokreni:
-
-```powershell
-.\venv\Scripts\python.exe scripts\evaluate_labelled_pairs.py
-```
-
-Skripta samo čita CSV i poredi odvojeno DTW, intervalski motiv, oblik DTW puta i gustinu nota. Ne menja rezultate, MIDI fajlove ni ručne oznake.
-
-Opcija `--contours` testira mali naučeni model osobina konture, odvojeno bez ritma i sa ritmom. Svaki solo se proverava modelom naučenim na ostalim solima. Ovo je istraživački eksperiment inspirisan predlogom mentorke, ne nova verzija detektora; dosadašnji rezultati i ograničenja zapisani su u `RESEARCH.md`.
-
-Za nove neproverene kandidate pretraga u CSV dodaje kolone `note_density`, `motif_run_fraction`, `dtw_diagonal_fraction` i `review_priority`. Kandidati sa manjim `review_priority` stoje prvi za ručni pregled; to je redosled pregleda, ne automatska oznaka `DA`.
-
-## Izvoz potvrđenog dataseta
-
-Za izvoz svih ručno označenih `DA` primera pokreni:
-
-```powershell
-.\venv\Scripts\python.exe scripts\export_reviewed_dataset.py --export
-```
-
-Rezultat je `output/reviewed_dataset.json`: početni dataset sa pitch vrednostima, originalnim vremenima i trajanjima nota, granicama call-a i response-a i putanjama do postojećih MIDI fajlova. Bez `--export` komanda samo proverava podatke. Provera poredi note i oba MIDI kanala sa bazom; greška sprečava novi izvoz.
-
-`overlapping_ids` označava preklapajuće verzije koje treba zajedno pregledati pre konačnog izdanja. One ostaju sačuvane, ali broj anotacija nije nužno broj nezavisnih parova. `evaluation_group` grupiše isti solo za odvajanje treninga i testa. Putanje MIDI fajlova su relativne prema korenu projekta. Originalni CSV ostaje mesto za tvoje DA/NE oznake; JSON je izvedeni snimak i treba ponovo izvesti nakon novih ocena.
-
-Za prenosiv paket sa JSON-om, postojećim MIDI isečcima i kratkim uputstvom pokreni:
-
-```powershell
-.\venv\Scripts\python.exe scripts\export_reviewed_dataset.py --package
-```
-
-Komanda proverava podatke i pravi `output/reviewed_dataset.zip`, a osvežava i JSON. Raspakuj ZIP i otvori MIDI iz putanje navedene u manifestu; WJD baza nije potrebna za preslušavanje. Paket zadržava preklapajuće verzije kao pilot anotacije. Provera tačnih MIDI bajtova, nota, tajminga i putanja završava se pre zamene prethodnog izvoza; greška validacije ostavlja prethodni paket sačuvan. Izvorni CSV i WJD baza nisu u paketu.
-
-Radni JSON i ZIP ostaju lokalno u `output`; izdavački CSV, JSON i MIDI ZIP su
-u `dataset/` i predstavljaju verziju za deljenje ili citiranje.
-
-Za pregled različitih granica potvrđenih primera pokreni:
-
-```powershell
-.\venv\Scripts\python.exe scripts\export_reviewed_dataset.py --review
-```
-
-Prikazuje naziv pesme, broj nota oba dela, vreme granice i MIDI putanju za preklapajuće verzije. Pregled koristi sačuvani paket, pa nove CSV ocene postaju vidljive nakon ponovnog `--package` izvoza.
-
-`preferred_annotation_id` čuva verziju koju je korisnica izabrala za grupu, a `boundary_choice_note` obrazloženje. Ranije DA/NE ocene i alternativne verzije ostaju sačuvane. Broj preklapanja opisuje granice i ostaje isti i nakon izbora poželjne verzije.
-
-Provera paketa na drugom računaru, bez WJD baze i izvornog CSV-a:
-
-```powershell
-python scripts\export_reviewed_dataset.py --verify-package output\reviewed_dataset.zip
-```
-
-Potrebni su Python i `pretty_midi`. Provera čita sadržaj ZIP-a bez raspakivanja i proverava note, tajming, granice, grupe po solu i oznake preklapanja. Proverava usklađenost paketa, a ne muzičku ispravnost DA ocena.
-
-## Početne ručne anotacije
-
-Za povezivanje početne Excel tabele sa tačnim WJD notama:
-
-```powershell
-.\venv\Scripts\python.exe scripts\import_manual_annotations.py "C:\Users\nikol\Downloads\jazzdialog3(4).xlsx" --export
-```
-
-`output/manual_reference_mapping.json` čuva originalne zapise, izvor i predložene granice. Ne menja Excel ni CSV ocene. Četiri tačna poklapanja već postoje u DA zbirci i nisu novi parovi. Nepoznate oktave, drugi izvori i granice kroz vezanu notu ostaju označeni za proveru. Ovo je uvoz konkretnog početnog šablona, ne opšti XLSX konverter.
-
-Ručni primer 11, My Funny Valentine (melid 402), potvrđen je slušanjem. Zapis se poklapa uz pomeranje za oktavu naniže, a call i response prelaze iz WJD fraze 1 u 2. Za pripremu istog MIDI isečka za proveru možeš pokrenuti:
-
-```powershell
-.\venv\Scripts\python.exe scripts\import_manual_annotations.py "C:\Users\nikol\Downloads\jazzdialog3(4).xlsx" --preview manual:11
-```
-
-Potvrđeni MIDI je `output/wjd_phrase_excerpts/manual_11_melid_402.mid`, sa CALL/RESPONSE trakama, originalnim WJD visinama i tajmingom. Granica je 7 nota za call i 8 za response. Dalji rad i naučni doprinos opisani su u `RESEARCH.md`.
-
-## Izvor podataka i licenca
-
-Weimar Jazz Database je deo [Jazzomat Research Project](https://jazzomat.hfm-weimar.de/) i dostupna je pod Open Data Commons Open Database License (ODbL).
+Transkripcije i anotacije potiču iz [Weimar Jazz Database / Jazzomat Research Project](https://jazzomat.hfm-weimar.de/). WJD je objavljen pod [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/), a sadržaji baze pod [DbCL 1.0](https://opendatacommons.org/licenses/dbcl/1-0/); detalji o poreklu i ograničenjima nalaze se u [kartici baze](dataset/DATASET_CARD.md). Audio snimci nisu uključeni.

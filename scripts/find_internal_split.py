@@ -1,4 +1,5 @@
 from dtaidistance import dtw
+from pathlib import Path
 try:
     import numpy as np
 except ImportError:  # Zadrzi rad u minimalnom okruzenju bez NumPy-ja.
@@ -151,7 +152,7 @@ def analyze_phrase(phrase, phrase_number=None, use_intervals=False, incipit_k=3,
 
 
 if __name__ == "__main__":
-    midi_path = r"C:\Users\nikol\Desktop\jazzdialog\data_midi\solo72.mid"
+    midi_path = Path(__file__).resolve().parents[1] / "data_midi" / "solo72.mid"
     phrases = segment_by_rests(midi_path, rest_threshold=0.3)
 
     # promeni broj ovde da testiras drugu frazu, ili napravi petlju za sve odjednom

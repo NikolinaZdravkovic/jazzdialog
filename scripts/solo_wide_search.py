@@ -1,5 +1,6 @@
 import pretty_midi
 from dtaidistance import dtw
+from pathlib import Path
 
 
 def _dtw_norm(a, b):
@@ -143,7 +144,7 @@ def sliding_fixed_window_search(notes, window_size=8, gap=0, alpha=0.5, incipit_
 
 
 if __name__ == "__main__":
-    midi_path = r"C:\Users\nikol\Desktop\jazzdialog\data_midi\solo72.mid"
+    midi_path = Path(__file__).resolve().parents[1] / "data_midi" / "solo72.mid"
     notes = load_solo_pitches(midi_path)
     pitches = [n.pitch for n in notes]
 

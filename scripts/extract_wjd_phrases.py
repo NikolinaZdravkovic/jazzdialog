@@ -1,4 +1,5 @@
 import sqlite3
+from pathlib import Path
 
 
 def connect_db(db_path):
@@ -70,7 +71,7 @@ def print_phrases_with_pitches(conn, melid):
 
 
 if __name__ == "__main__":
-    db_path = r"C:\Users\nikol\Desktop\jazzdialog\data_midi\wjazzd.db"  # prilagodi putanju gde si sacuvala .db fajl
+    db_path = Path(__file__).resolve().parents[1] / "data_midi" / "wjazzd.db"
     conn = connect_db(db_path)
 
     # prvo pronadji tacan melid za pesmu koja te zanima

@@ -1,4 +1,5 @@
 import pretty_midi
+from pathlib import Path
 
 def segment_by_rests(midi_path, rest_threshold=0.3):
     """
@@ -37,7 +38,7 @@ def phrase_to_interval_sequence(phrase):
 
 
 if __name__ == "__main__":
-    midi_path = r"C:\Users\nikol\Desktop\jazzdialog\data_midi\solo72.mid"
+    midi_path = Path(__file__).resolve().parents[1] / "data_midi" / "solo72.mid"
     phrases = segment_by_rests(midi_path, rest_threshold=0.3)
 
     print(f"Broj pronadjenih fraza: {len(phrases)}\n")

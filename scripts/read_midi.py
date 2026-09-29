@@ -1,6 +1,7 @@
 import pretty_midi
+from pathlib import Path
 
-midi_path = r"C:\Users\nikol\Desktop\jazzdialog\data_midi\solo71.mid"
+midi_path = Path(__file__).resolve().parents[1] / "data_midi" / "solo71.mid"
 
 pm = pretty_midi.PrettyMIDI(midi_path)
 
