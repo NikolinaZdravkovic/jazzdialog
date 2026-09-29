@@ -20,6 +20,27 @@ def keep(paragraph, next_one=False):
     paragraph.paragraph_format.keep_with_next = next_one
 
 
+def add_inline_text(paragraph, text):
+    """Render the small Markdown subset used by the manuscript."""
+    token = re.compile(r'(\*\*.*?\*\*|\*.*?\*|\`.*?\`)')
+    position = 0
+    for match in token.finditer(text):
+        if match.start() > position:
+            paragraph.add_run(text[position:match.start()])
+        value = match.group(0)
+        run = paragraph.add_run(value[2:-2] if value.startswith('**') else value[1:-1])
+        if value.startswith('**'):
+            run.bold = True
+        elif value.startswith('*'):
+            run.italic = True
+        else:
+            run.font.name = 'Courier New'
+            run.font.size = Pt(9)
+        position = match.end()
+    if position < len(text):
+        paragraph.add_run(text[position:])
+
+
 def build():
     doc = Document()
     sec = doc.sections[0]
@@ -97,23 +118,27 @@ def build():
                 cells = table.add_row().cells
                 for j, (cell, value) in enumerate(zip(cells, row)):
                     cell.width = Cm(9.4 if j == 0 else 3.5)
-                    cell.text = value.strip()
+                    cell.text = ''
                     for p in cell.paragraphs:
                         p.paragraph_format.space_after = Pt(5)
                         p.paragraph_format.space_before = Pt(5)
                         if j: p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
                         keep(p, i < len(rows)-1)
+                        add_inline_text(p, value.strip())
                         for r in p.runs:
-                            r.font.size = Pt(10); r.bold = i == 0
+                            r.font.size = Pt(10)
+                            if i == 0: r.bold = True
                 tr_pr = table.rows[-1]._tr.get_or_add_trPr()
                 tr_pr.append(OxmlElement('w:cantSplit'))
                 if i == 0: tr_pr.append(OxmlElement('w:tblHeader'))
             doc.add_paragraph().paragraph_format.space_after = Pt(1)
         elif re.match(r'^(Slika|Tabela) \d+\.', block):
-            p = doc.add_paragraph(block, 'Caption')
+            p = doc.add_paragraph(style='Caption')
+            add_inline_text(p, block)
             keep(p, block.startswith('Tabela '))
         else:
-            p = doc.add_paragraph(block)
+            p = doc.add_paragraph()
+            add_inline_text(p, block)
             p.alignment = WD_ALIGN_PARAGRAPH.LEFT if bibliography else WD_ALIGN_PARAGRAPH.JUSTIFY
             if block.startswith(('Nikolina ', 'Mentorka:')):
                 p.alignment = WD_ALIGN_PARAGRAPH.LEFT

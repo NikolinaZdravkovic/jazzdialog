@@ -119,8 +119,8 @@ def main():
              'Samo obrasci', 'Model + kazna za obrasce', 'Model + kazna po susedima', 'Model + intervalske osobine']
     summary = {}
     fig, ax = plt.subplots(figsize=(7, 4.8), constrained_layout=True)
-    for key, offset, color, label in [('all_automatic_solo', -.16, '#356b88', 'Svi automatski / All (n=299)'),
-                                     ('mlu_only_solo', .16, '#cf8346', 'MLU podskup / Subset (n=238)')]:
+    for key, offset, color, label in [('all_automatic_solo', -.16, '#356b88', 'Svi automatski kandidati (n=299)'),
+                                     ('mlu_only_solo', .16, '#cf8346', 'MLU podskup (n=238)')]:
         values = np.array([[run['metrics'][m]['review_top_20pct']['precision']*100
                             for m in methods] for run in report['experiments'][key]['evaluations']])
         means = values.mean(axis=0)
@@ -132,10 +132,10 @@ def main():
                            'seed_precision_percent': values[:, i].tolist()} for i,m in enumerate(methods)}
     ax.set_yticks(np.arange(len(methods)), names, fontsize=9)
     ax.invert_yaxis(); ax.set_xlim(0, 70)
-    ax.set_xlabel('Preciznost / Precision (%)')
+    ax.set_xlabel('Preciznost (%)')
     ax.set_ylim(len(methods)+.65, -.6)
     ax.legend(loc='lower right', fontsize=8)
-    ax.set_title('Isti budžet pregleda / Equal review budget')
+    ax.set_title('Isti budžet pregleda')
     fig.savefig(FIGURE_DIR/'figure_3_ranking.png', dpi=320)
     fig.savefig(FIGURE_DIR/'figure_3_ranking.svg')
     plt.close(fig)

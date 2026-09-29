@@ -1,210 +1,189 @@
-# JazzDialog: izgradnja i analiza zbirke call-and-response parova u jazz solažima
+# JazzDialog: izdvajanje i dokumentovanje call-and-response parova iz jazz solaža
 
 Nikolina Zdravković
-
 Mentorka: Maja Milović
 
 ## Sažetak
 
-Prepoznavanje call-and-response odnosa u jazz improvizaciji zahteva razlikovanje muzičkog dijaloga od prostog ponavljanja. U ovom radu predstavljena je zbirka JazzDialog, izgrađena nad simboličkim transkripcijama Weimar Jazz Database kombinovanjem algoritamskog predlaganja i ručne provere. Zbirka sadrži 114 potvrđenih anotacija iz 76 sola, sa preciznim granicama oba segmenta, izvornim visinama i vremenima nota i odgovarajućim MIDI isečcima. Trinaest zapisa povezano je sa početnim ručnim referencama. Ispitano je rangiranje kandidata dinamičkim vremenskim poravnanjem (DTW), jednostavnim modelom obučenim na ljudskim oznakama i dodatnim statističkim kaznama. U retrospektivnoj grupisanoj validaciji na 299 algoritamskih kandidata, preciznost među predlozima pri istom budžetu pregleda iznosila je prosečno 42,8% za DTW sa poređenjem početaka i 54,4% za ponovo obučeni model sa deset osobina. Dodatne kazne nisu dale dosledno poboljšanje. Od potvrđenih anotacija, 88 prelazi granice zvaničnih WJD fraza. Rezultati ukazuju na značaj izbora granica i ručne potvrde: niska melodijska udaljenost nije dovoljna potvrda call-and-response veze. Doprinos rada je proverljiva zbirka, postupak njenog formiranja i dokumentovana analiza ograničenja primenjenih metoda.
+Call-and-response je muzički odnos u kome jedna kratka muzička celina otvara pitanje, obrazac ili ideju, a naredna celina na nju odgovara ponavljanjem, varijacijom, kontrastom ili nastavkom. Iako je takav odnos čest u jazz improvizaciji, teško ga je svesti na jednu numeričku meru: dve fraze mogu biti slične po visini tonova, a da ipak zvuče kao mehaničko ponavljanje bez muzičke funkcije; sa druge strane, dobar odgovor može da promeni melodiju, dužinu ili završetak. U radu je prikazan postupak izgradnje baze JazzDialog, skupa ručno potvrđenih call-and-response parova izdvojenih iz transkribovanih jazz solaža. Istraživanje je počelo segmentacijom po pauzama, a zatim je prešlo na zvanično anotirane granice fraza i na pretragu susednih delova fraze. Ispitane su melodijska udaljenost dinamičkim vremenskim poravnanjem, sličnost početaka, intervali, konture, relativni ritam, ograničenja dužine i modeli za rangiranje kandidata. Rezultati pokazuju da mala melodijska udaljenost sama po sebi nije dovoljna za pouzdano prepoznavanje call-and-response odnosa. Zato se konačna baza zasniva na računarski izdvojenim kandidatima i obaveznom slušanju i potvrdi. JazzDialog sadrži 114 potvrđenih zapisa iz 76 solaža, uz povezane MIDI isečke i precizne granice call i response delova.
 
-Ključne reči: jazz improvizacija, call-and-response, muzički podaci, DTW, ljudska anotacija, rangiranje kandidata.
+**Ključne reči:** jazz improvizacija, call-and-response, analiza melodije, dinamičko vremensko poravnanje, baza podataka, MIDI
 
 ## 1. Uvod
 
-U ovom radu call-and-response označava odnos dva vremenski uređena dela sola: prvi uspostavlja prepoznatljivu muzičku ideju, a drugi se pri slušanju doživljava kao njen odgovor ili nastavak. Odgovor može ponoviti početak, promeniti visine ili razviti motiv. Zbog toga jednaki nizovi nota nisu ni neophodan ni dovoljan uslov takvog odnosa. Posebno je teško razlikovati muzički dijalog od kratkog obrasca koji se mehanički ponavlja.
+Call-and-response je oblik muzičke komunikacije u kome se dva dela doživljavaju kao povezane, ali ne nužno iste celine. U jazzu se može javiti između izvođača, između soliste i pratnje, ali i unutar jedne solaže: izvođač iznese kratku ideju, pa je ponovi, promeni, dopuni ili joj odgovori novom idejom. Zbog improvizacione prirode jazza granica između ponavljanja, varijacije i odgovora nije uvek oštra. Upravo zato je zanimljivo pitanje da li se takvi odnosi mogu dovoljno dobro opisati računarom da bi se pronašli u većem broju solaža.
 
-Problem je posmatran iz ugla izgradnje podataka. Potrebno je pronaći odnose koje je moguće ponovo locirati u izvornom solu, preslušati i koristiti u narednim istraživanjima. Potpuno automatska odluka bila bi praktična, ali greške u takvoj odluci direktno bi umanjile vrednost zbirke. Zato je razvijen postupak u kome algoritam predlaže i rangira kandidate, dok konačnu odluku donosi ljudski ocenjivač.
+Početna ideja projekta odnosila se na generisanje jazz melodija koje bi mogle da vode dijalog. Tokom rada pokazalo se da pre generisanja treba bolje razumeti od čega se stvarni muzički dijalog sastoji i kako se može opisati u podacima. Konačni fokus je zato promenjen: umesto generisanja, cilj je postao izdvajanje i dokumentovanje stvarnih call-and-response parova iz postojećih solo improvizacija.
 
-Istraživanje ima dva povezana pitanja. Prvo, koliko mere sličnosti visina nota i učenje iz prethodnih ocena pomažu da se među ograničenim brojem predloga pronađu dobri parovi? Drugo, kakav opis podataka omogućava da prihvaćeni parovi budu proverljivi i ponovo upotrebljivi? Cilj nije modelovanje celokupnog jazz izraza, već izgradnja jasno dokumentovane zbirke i procena korisnosti jednostavnih postupaka za njeno formiranje.
+Istraživački problem rada glasi: **kako iz transkribovanog jazz sola izdvojiti muzički smislen call-and-response par, a da izbor ne zavisi samo od prividne sličnosti nekoliko tonova?** Kao praktičan rezultat nastala je baza JazzDialog. Svaki njen zapis povezuje izvođača i naslov sa preciznim indeksima nota, vremenima, visinama tonova i MIDI isečkom za ručnu proveru.
 
-Doprinos rada čine povezivanje pozitivnih anotacija sa konkretnim WJD događajima, objedinjavanje algoritamskih i početnih ručnih referenci, prenosivi format CSV/JSON/MIDI i poređenje metoda rangiranja na označenim kandidatima. Ne tvrdi se da je ovo prvi skup call-and-response podataka niti da rezultat predstavlja opšte rešenje za automatsko razumevanje muzičkog dijaloga.
+Rad ne polazi od pretpostavke da je call-and-response moguće potpuno automatski i bez greške odrediti. Umesto toga, kroz niz eksperimenata ispituje koje numeričke osobine pomažu pri pronalaženju kandidata, gde prave lažne pozitivne rezultate i kako računar može da ubrza, ali ne i da zameni, muzičko slušanje.
 
-## 2. Povezana istraživanja
+## 2. Priprema za obradu
 
-WJD obezbeđuje transkripcije jazz solaža, metapodatke i muzičke anotacije potrebne za računarsku analizu improvizacije (Pfleiderer et al. 2017). Pored granica fraza, za ovaj rad značajne su jedinice srednjeg nivoa, odnosno midlevel units (MLU). Taj pristup opisuje lokalne muzičke ideje i njihove odnose između nivoa pojedinačne note i celokupne forme sola (Frieler et al. 2016). MLU veza može biti koristan predlog mesta za pregled, ali sama po sebi nije oznaka call-and-response odnosa prema kriterijumu ove zbirke.
+### 2.1. Izvor podataka i reprezentacija solaža
 
-DTW omogućava poređenje sekvenci nejednake dužine i lokalno prilagođavanje njihovog poravnanja. Njegova primena u obradi muzike i ograničenja putanje obrađeni su u literaturi o muzičkim informacijama (Müller 2015). U ovom radu DTW se primenjuje na nizove MIDI visina. Matematičko poravnanje se ne poistovećuje sa perceptivnom procenom odnosa dve fraze.
+Za analizu su korišćene monofone MIDI transkripcije jazz solaža i njihove prateće anotacije iz sistema Jazzomat / Weimar Jazz Database. Taj izvor je pogodan jer pored događaja nota čuva identifikatore solaža, izvođače, naslove i anotirane muzičke celine. U ovom radu baza je izvor transkripcija i granica fraza, a predmet istraživanja je sopstveni postupak analize i nastala JazzDialog kolekcija. Opis formata podataka i termina koji se odnose na sekcije solaža dat je u dokumentaciji izvora (Pfleiderer i dr., 2017; Jazzomat, 2026).
 
-Salamon et al. (2012) koriste statističke osobine kontura za izdvajanje melodije iz polifonog zvuka. Taj rad je motivisao razmatranje reprezentacije konture, ali njegov zadatak se razlikuje od ovde posmatranog: WJD već obezbeđuje monofonu transkripciju, dok treba utvrditi odnos dva njena segmenta. Njihov indeks melodijskog karaktera nije neposredno primenjen kao klasifikator call-and-response parova.
+Svaka nota je predstavljena četvorkom
 
-Postoje i skupovi namenjeni generisanju muzičkog odgovora. Hu et al. (2024) predstavljaju Call-Response Dataset i model koji koristi melodijsko, ritmičko i harmonijsko znanje za kompoziciju. JazzDialog ima uži cilj: ručno proverene odnose u konkretnim improvizovanim jazz solažima, sa izričitim granicama i vezom prema izvornoj transkripciji. Razlika u zadatku ne opravdava tvrdnju o prvenstvu, ali određuje namenu ove zbirke.
+`(eventid, onset, pitch, duration)`,
 
-Za opis podataka korišćeni su principi jasnog dokumentovanja izvora, postupka prikupljanja i ograničenja (Gebru et al. 2021), kao i identifikacije i ponovne upotrebe istraživačkih podataka (Wilkinson et al. 2016). Praktična posledica je razdvajanje jednostavne pozitivne zbirke od detaljne istorije eksperimentisanja.
+gde je `eventid` redni broj note u solu, `onset` vreme početka, `pitch` MIDI visina tona, a `duration` trajanje. Za najveći deo melodijske analize korišćen je niz MIDI visina tonova. Na primer, niz `[67, 69, 71]` predstavlja tri uzastopne note. Kada je bilo potrebno da se proveri da li je deo prekratak ili prebrz, korišćeni su i onset i trajanje.
 
-## 3. Podaci i postupak anotiranja
+Kao početnu osnovnu jedinicu prihvaćena je zvanično anotirana fraza. U tabeli sekcija čuvaju se granice tipa `PHRASE`; završni indeks je inkluzivan, pa se pri izdvajanju niza u Pythonu uvećava za jedan. Takva odluka nije tvrdnja da je svaka anotirana fraza sama po sebi call-and-response. Ona samo obezbeđuje stabilniji okvir od proizvoljne podele celog sola.
 
-### 3.1. Izvor i jedinica zapisa
+### 2.2. Od fraze do kandidata
 
-Korišćena je lokalna WJazzD baza 2.1, koja sadrži 456 sola. Note se čitaju iz SQLite baze po identifikatoru sola, sa visinom, početkom i trajanjem. Granice zvaničnih fraza čitaju se iz tabele sections za tip PHRASE. Izvorna završna granica je uključiva; pri izvozu je pretvorena u isključivu granicu, što odgovara Python isečku niza. Metapodaci, kao što su tonalitet i prosečan tempo, preuzeti su za ceo solo i nisu predstavljeni kao automatska analiza lokalnog para (Jazzomat, dokumentacija baze).
+Kandidat se sastoji od dva uzastopna segmenta: call je prvi niz nota, a response počinje na tački podele. U najjednostavnijem slučaju cela fraza se deli na dva dela. Ako fraza ima niz p₁, p₂, ..., pₙ, za svaku dozvoljenu tačku s proveravaju se nizovi
 
-Jedinica konačne zbirke je anotacija sa dva segmenta: call i response. Segmenti čuvaju izvorni redosled i WJD vremena nota. CSV omogućava pregled, JSON sadrži potpune događaje i dodatne podatke o poreklu, a MIDI omogućava slušanje. MIDI visine i trajanja verno predstavljaju transkripciju, ali ne reprodukuju sve osobine originalnog audio izvođenja.
+`call = [p₁, ..., pₛ]` i `response = [p₍ₛ₊₁₎, ..., pₙ]`.
 
-### 3.2. Operativni kriterijum i ljudski pregled
+Na taj način se ne pretražuju sve proizvoljne četvorke granica, već samo moguće podele jedne fraze. Za frazu dužine n postoji najviše n − 1 tačaka podele; uz ograničenje minimalne dužine broj kandidata je manji. Svaka DTW provera dve sekvence u najgorem slučaju ima kvadratnu složenost po njihovoj dužini, pa je ovakav pristup praktičan za fraze u korišćenim solažama i pregledan za ručnu proveru.
 
-Kandidati su preslušavani kao isečci sa odvojenim CALL i RESPONSE trakama. Autorka je upisivala DA kada je čula smislenu celinu u kojoj drugi deo odgovara na prepoznatljivu ideju prvog. Oznaka NE dodeljivana je predlozima koji su zvučali kao nepovezani segmenti, izolovane brze mikrofraze ili ponavljanje bez jasnog odnosa pitanja i odgovora. Ove razlike su perceptivne odluke jednog ocenjivača, a ne univerzalna formalna definicija.
+Od početka su isključeni očigledno neinformativni kandidati: segmenti sa premalo nota, prekratkim ukupnim trajanjem ili izrazito neujednačenim brojem nota. U kasnijim verzijama response je mogao da ima između polovine i dvostruke dužine call-a, a svaki deo je morao da traje najmanje jednu sekundu. Ove granice nisu definicija call-and-response odnosa; one samo uklanjaju slučajeve kao što su call od tri note i response od trideset nota, koje je algoritam povremeno pogrešno favorizovao.
 
-Tokom razvoja proveravane su i granice: odgovor ponekad počinje notom koja perceptivno pripada završetku call-a, ili se nastavlja posle kraja smislene celine. Prihvaćene korekcije sačuvane su zajedno sa granicama. Ocenjivač nije bio slep za prethodne predloge i ocene, što predstavlja ograničenje postupka. Nije sprovedena nezavisna procena više anotatora.
+### 2.3. Ručna potvrda i status podataka
 
-Radni dnevnik na završetku sadrži 312 označenih zapisa, od kojih 114 DA i 198 NE. Negativni zapisi nisu deo glavne pozitivne zbirke, ali ostaju sačuvani za analizu grešaka i učenje redosleda pregleda. Neoznačena fraza ili kandidat koji nije prošao filter ne tretira se kao negativan primer.
+Računarski skor nije korišćen kao konačna oznaka. Kandidati su izvoženi u preglednu CSV tabelu i u zasebne MIDI isečke. Nakon slušanja svaki kandidat je ručno označen kao `DA` ili `NE`. Ručna oznaka znači da je par prihvaćen za bazu, a ne da predstavlja jedinu moguću analizu konkretnog sola. Pregled je obavila autorka rada; zbog toga baza nema nezavisnu međuanotatorsku saglasnost i to ograničenje je važno pri tumačenju rezultata.
 
-### 3.3. Povezivanje početnih ručnih referenci
+## 3. Obrada
 
-Početna Excel tabela sadrži 21 zapis sa imenima nota, oktavama, trajanjima i dodatnim muzičkim beleškama. Visine su pretvorene u MIDI brojeve, uz uvažavanje transpozicije instrumenta, vezanih nota i različitog oktavnog zapisa. Potom je tražena odgovarajuća kontinuirana sekvenca u konkretnom WJD solu. Za ovaj korak nije korišćeno slobodno DTW razvlačenje kojim bi se nepodudarne note prikazale kao isti zapis.
+### 3.1. Prvi koraci: pauze, klizni prozori i granice fraza
 
-Trinaest referenci povezano je sa WJD podacima. Osam je već bilo u pregledanim rezultatima, dok je pet dopunilo zbirku. Četiri novododata mapiranja sadrže male razlike u zapisanim visinama, proverene prema WJD notnim transkripcijama. Razlike, transpozicije i dopunjene oktave sačuvane su u posebnom zapisu provere. Jedna ranije prihvaćena referenca ima odstupanje response-a u izvornom Excelu; zadržane su ranije potvrđene WJD granice. Takvi slučajevi nisu označeni kao doslovna poklapanja.
+Prvi postupak je delio solo na delove kada je pauza između dve note bila veća od zadatog praga. Takva segmentacija je jednostavna i korisna za brzi pregled, ali se pokazala previše krutom. Muzička ideja može da se nastavi preko kratke pauze, a call i response mogu postojati i unutar jedne celine bez jasne tišine. Zbog toga se od nje odustalo kao od glavnog izvora granica.
 
-Sedam referenci odnosi se na snimke kompozicija It Could Happen to You i Well You Needn't koji nisu pronađeni u lokalnom WJD-u. Jedan zapis za Two's Blues je nepotpun. Oni nisu uključeni uz izmišljene identifikatore. Trajanja u objavljenoj zbirci preuzeta su iz WJD-a, a ne iz nejasnih oznaka ritma u Excelu. Veza između broja originalne reference i konačnog broja dostupna je u dokumentaciji baze.
+Ispitani su i klizni prozori kroz ceo solo, kao i pokušaji spajanja kraja jedne i početka naredne fraze. Oni su proširili broj kandidata, ali su otežali kontrolu: pretraga je često birala lokalno slične delove koji nisu činili jednu jasnu muzičku misao. Nakon ručnog pregleda vraćeno je pravilo da se osnovna pretraga obavlja u okviru jedne anotirane fraze. Parovi preko granice fraze ostali su važni za konačnu zbirku ako su ručno potvrđeni, ali nisu korišćeni kao nekontrolisana automatska pretraga.
 
-## 4. Metode predlaganja i rangiranja
+### 3.2. Melodijska sličnost i dinamičko vremensko poravnanje
 
-### 4.1. Osnovna podela fraze
+Za poređenje call-a i response-a najpre je korišćeno dinamičko vremensko poravnanje (Dynamic Time Warping, DTW). DTW pronalazi put kroz matricu parova nota tako da dozvoli da jedna nota iz jedne sekvence bude povezana sa više nota druge sekvence. Zato je koristan kada dve fraze imaju sličan oblik, ali nisu iste dužine ili nisu potpuno ravnomerno raspoređene (Müller, 2015).
 
-Za frazu sa n nota isprobava se svaka dozvoljena tačka s, čime nastaju call = p[0:s] i response = p[s:n]. Osnovni postupak pokriva celu frazu, bez razmaka. Najbolja podela minimizuje kombinovani skor globalnog poređenja i poređenja početaka. To je jednostavan početni model, čija ograničenja mogu jasno da se prate.
+U korišćenoj implementaciji prvo se računa optimalan put P kroz DTW matricu, a zatim se rastojanje deli stvarnom dužinom tog puta:
 
-Neka su x i y nizovi visina dužina m i n. DTW pronalazi monotonu putanju P kroz matricu parova nota, uz standardne horizontalne, vertikalne i dijagonalne korake. U primenjenoj DTAIDistance implementaciji podrazumevani trošak je koren sume kvadrata razlika duž optimalne putanje. Korišćeni skor je:
+D(x,y) = sqrt( sum((x_i - y_j)^2) za (i,j) iz P ) / |P|
 
-D(x,y) = sqrt(sum_(i,j in P) (x_i - y_j)^2) / |P|. (1)
+gde su x i y nizovi MIDI visina, P optimalni ratni put, a |P| broj njegovih koraka. Manja vrednost znači bliže melodijsko poravnanje. Deljenje dužinom optimalnog puta bilo je važno jer prosta podela maksimalnom dužinom ne opisuje stvarno poravnanje dve sekvence.
 
-Imenilac je stvarni broj parova na izabranoj putanji, a ne veća od dužina sekvenci. Incipit skor I poredi prvih k nota apsolutno i posle oduzimanja prve visine svake sekvence, pa uzima manju od te dve udaljenosti. Kombinacija je:
+Pored apsolutne visine ispitana je i transponovana predstava. Od svake note oduzima se prva nota svog segmenta, pa niz opisuje odstupanje od početka. Tako dve fraze koje počinju na različitim visinama, ali imaju sličan oblik, mogu dobiti manju udaljenost. Za početke fraza računata je i incipit mera: porede se prve tri note apsolutno i transponovano, a uzima se manja udaljenost. U ranim pretragama kombinovani skor bio je
 
-S(x,y) = alpha D(x,y) + (1 - alpha) I(x,y). (2)
+S(x,y) = alpha D(x,y) + (1 - alpha) I(x,y),
 
-U završnoj evaluaciji korišćeni su alpha = 0,8 i početno k = 3. Pri prosečnom tempu od najmanje 215 BPM broj početnih nota povećava se dok zbir njihovih trajanja na obe strane ne dosegne 0,75 s. Uzima se veći potrebni broj nota; ako oba dela nisu dovoljno duga, incipit skor zamenjuje se globalnim skorom. Ovo je zadržana razvojna heuristika, ne naučeno pravilo ritma. Manji skor predstavlja veću sličnost, ne veću verovatnoću muzičke ispravnosti. Postupak za jednu tačku podele troši O(mn) vremena i memorije za matricu poravnanja. Isprobavanje svih tačaka podele jedne fraze zato u najgorem slučaju zahteva O(n^3) vremena i O(n^2) radne memorije. Ne pretražuju se sve kombinacije početaka, krajeva i razmaka.
+gde je I incipit udaljenost, a alpha težina globalnog DTW dela. Osnovna funkcija je koristila alpha = 0,5; u kasnijoj pretrazi težina globalnog dela povećana je na 0,8, uz incipit od tri note. Pri veoma brzom tempu broj uvodnih nota je po potrebi proširivan dok ne obuhvati približno 0,75 s, jer tri vrlo kratke note nisu dovoljan muzički signal.
 
-### 4.2. Filteri, druge granice i razvojne varijante
+### 3.3. Zašto jedna mera nije dovoljna
 
-Kratki delovi, velika razlika broja nota i ponavljanje istog kratkog motiva često su davali matematički povoljne, a perceptivno slabe rezultate. Tokom razvoja uvedena su ograničenja dužine i trajanja i odbacivanje izrazitih ponavljanja. U jednoj od korišćenih konfiguracija zahtevalo se najmanje pet nota po delu i odnos dužina između 1:2 i 2:1; proveravano je i minimalno trajanje. To su heuristike za izbor kandidata, ne uslovi koji retroaktivno određuju validnost svih ručno prihvaćenih parova.
+U više iteracija kombinovane su dodatne mere: kraj fraze, Parsons-kontura, intervalski nizovi i različite varijante normalizacije. Pokazalo se da mehaničko uzimanje minimuma preko više sličnosti stvara problem: što je više nezavisnih prilika da se pronađe kratko podudaranje, veća je šansa za lažni pozitivni rezultat. Takav postupak je spuštao skor i dobrim i lošim kandidatima i zato nije zadržan kao pravilo odlučivanja.
 
-Pošto su potvrđeni odnosi često prelazili granicu fraze, razvijen je i predlagač zasnovan na WJD MLU/IDEA odnosima. On koristi postojeću ljudsku analizu strukture sola da ograniči prostor pretrage. Zbog toga njegov uspeh ne predstavlja automatsko prepoznavanje strukture samo iz sirovih nota. Primena različitih predlagača tokom prikupljanja takođe znači da završni skup nije slučajan uzorak svih mogućih segmenata.
+Napravljene su i kontrolne provere normalizacije. Kod dve sekvence iste stvarne greške po poravnatim notama, stara formula dala je skor 0,447 za put od pet koraka i 0,224 za put od dvadeset koraka. RMS normalizacija, koja deli zbir kvadrata dužinom puta pre korenovanja, dala je 1 u oba slučaja. Ovaj rezultat pokazuje da se skala stare DTW mere menja sa dužinom puta i da se njene vrednosti ne mogu nekritički porediti između fraza različite dužine.
 
-Razmatrana su poređenja relativnih intervala, konture i razmaka između početaka nota. Zbirni rezultati za sve istorijske konfiguracije nisu uporedivi jer su menjani skupovi kandidata i filteri. Zato se ti pokušaji ne prikazuju kao kontrolisana potvrda superiornosti ili beskorisnosti ritma. Završno kvantitativno poređenje ograničeno je na jasno izdvojen skup i isti budžet ljudskog pregleda.
+Ispitane su četiri melodijske varijante na ranom skupu od 65 ručno označenih kandidata iz 22 solaže: početna DTW mera, pitch RMS, transponovani shape RMS i shape RMS sa ograničenom dijagonalnom trakom. Površine ispod ROC krive (AUC) bile su redom 0,475, 0,567, 0,557 i 0,603. Najbolja od ove četiri varijante bila je ograničena shape RMS mera, ali ni ona nije bila dovoljna za autonomno izdvajanje, što je vidljivo iz malog broja prihvaćenih primera u proveri po neviđenom solu.
 
-### 4.3. Učenje redosleda iz DA/NE oznaka
+### 3.4. Ritam, kontura i zaglađivanje
 
-Model za rangiranje je regularizovana logistička regresija sa deset osobina: apsolutni i transpozicioni DTW, dužine oba segmenta, njihova relativna neravnoteža, udeo zajedničkog motiva, najveći udeo jednog tona u svakom segmentu i udeo različitih tonova u svakom segmentu. Standardizacija se računa na trening skupu. Implementacija koristi 2.500 gradijentnih koraka, korak 0,08 i L2 koeficijent 0,02; slobodni član se ne regularizuje. Izlaz služi rangiranju i nije nezavisno kalibrisana verovatnoća.
+Ritam je razmatran poređenjem međunotnih razmaka. Svaki niz razmaka normalizovan je sopstvenom medianom, primenjen je logaritamski odnos, a zatim je računata DTW RMS udaljenost. Ovaj postupak ne meri apsolutni tempo, već odnos trajanja unutar jedne fraze. Na istom ranom skupu ritmička mera imala je AUC 0,501, praktično bez razdvajanja oznaka `DA` i `NE`. To ne znači da ritam nema muzički značaj; znači samo da ovako jednostavno poređenje razmaka nije izdvojilo pouzdan signal u raspoloživim anotacijama.
 
-Dodatno je ispitana blaga kazna za intervalske obrasce češće među NE primerima. Obrazac obuhvata dva ili tri uzastopna pomeraja visine, svrstana u devet opsega. Statistika razlikuje prisustvo u call-u, response-u i oba dela. Jedan obrazac doprinosi najviše jednom po paru i ulozi. Za korišćenje se zahteva najmanje pet trening primera iz tri sola, a procena se ublažava sa pet pseudoopažanja prema trening udelu DA. Kazna 0,35 puta pozitivni deo razlike između polaznog i procenjenog udela DA umanjuje izlaz modela. Nije uvedena apsolutna zabrana obrasca.
+Ispitana je i sažeta kontura zasnovana na relativnim visinama tonova: prosečno odstupanje, raspon i ukupno kretanje. Ideja je bila podstaknuta radovima o statističkoj karakterizaciji melodijske konture, ali se njihov pristup ne može direktno preneti: oni rešavaju izdvajanje vodeće melodije iz audio zapisa, dok su ovde već dostupne monofone MIDI note (Salamon, Peeters i Röbel, 2012). Na označenim kandidatima sažeta kontura, kao i kombinacija konture i ritma, nisu povećale uspeh. Median filter širine tri je donekle promenio raspodelu shape RMS skora, ali nije dao stabilan napredak pri proveri po solima.
 
-Poređene su i kazna zasnovana na 15 najbližih primera u standardizovanom prostoru osobina i varijanta sa dodatne 22 intervalske osobine. Postojeća kazna za sličnost najbližem poznatom NE primeru ostala je odvojena kontrola. Ovde se ispituje da li dodatno učenje iz negativnih primera donosi nešto preko već obučenog jednostavnog modela.
+### 3.5. Rangiranje za ručni pregled
 
-## 5. Protokol evaluacije
+Kasniji korak nije pokušavao da automatski proglasi kandidat dobrim, već da bolje poređa listu za slušanje. Pored DTW i incipit vrednosti razmatrani su odnos dužina, zastupljenost najčešće visine, udeo različitih tonova i približno ponavljanje intervalskog obrasca. Negativno označeni primeri nisu samo brisani: iz njih su izvedene blage kazne za obrasce koji su se često javljali među odbijenim kandidatima. Kazne su bile ograničene da ne bi potpuno zabranile muzički obrazac koji u drugom kontekstu može biti ispravan call-and-response.
 
-Evaluacija je retrospektivna i koristi snimak radne tabele pre poslednjeg dopunjavanja ručnim referencama: 307 označenih zapisa, od kojih 109 DA i 198 NE. Osam tadašnjih ručnih referenci izostavljeno je iz poređenja predlagača. Preostalih 299 algoritamskih kandidata sadrži 101 DA i 198 NE iz 166 sola. MLU podskup ima 238 kandidata, 87 DA i 151 NE iz 152 sola. Kasnije dodate ručne reference nisu korišćene da poprave te rezultate.
+Za proveru su korišćene petostruke podele po solima, tako da se kandidat i njegovi srodni delovi ne pojavljuju istovremeno u učenju i testiranju. Ovo je strožije od nasumične podele redova, ali nije nezavisna završna evaluacija: ručne oznake su već služile tokom razvoja kriterijuma. Cilj je zato bio poređenje redosleda za pregled, a ne tvrdnja o opštoj tačnosti klasifikatora.
 
-Korišćena je petostruka unakrsna validacija grupisana po solu, ponovljena za tri unapred zadate vrednosti inicijalizacije: 11, 29 i 47. Nijedan solo nije istovremeno u trening i test delu iste podele. Parametri standardizacije, težine modela, statistike obrazaca i negativne reference računaju se isključivo na treningu, u skladu sa pravilima sprečavanja curenja podataka (scikit-learn, dokumentacija).
+## 4. Rezultati i diskusija
 
-Glavna mera je preciznost pri fiksnom budžetu pregleda: broj DA među najbolje rangiranih 20% kandidata svakog test dela, uz zaokruživanje naviše. Ukupno se tako bira 60 kandidata za skup od 299, odnosno 50 za MLU podskup. Svi modeli dobijaju isti broj predloga. Ova mera odgovara praktičnom pitanju koliko dobrih primera ocenjivač dobija za isti broj preslušavanja. Nije accuracy nad svim WJD frazama, niti odziv nad svim stvarnim call-and-response pojavama.
+### 4.1. Dva konkretna kandidata
 
-Provereno je i izdvajanje izvođača iz treninga, kao i jedna varijanta bez vremenski preklapajućih zapisa. Kontrole su potvrdile da promena test oznaka ne menja izračunate skorove i da su osnovne funkcije reprodukovane. Ipak, razvojni podaci su ranije uticali na izbor metoda i filtera: grupisana validacija ne pretvara ih u netaknut završni test. Tri ponavljanja koriste iste primere i ne predstavljaju tri nezavisno prikupljena skupa.
+Sledeće dve slike su iz stvarno pregledanih kandidata. U gornjem panelu svake slike horizontalna osa je redni broj note unutar call-a, odnosno response-a, a vertikalna osa je MIDI visina. U srednjem panelu horizontalna osa predstavlja indeks note response-a, vertikalna osa indeks note call-a, boja predstavlja akumulirani DTW trošak, a bela linija optimalni put poravnanja. Donji panel prikazuje koje su note uparene na svakom koraku tog puta.
 
-## 6. Rezultati
+![Dobar kandidat: I Fall in Love Too Easily, melid 70, fraza 5](output/dtw_graphs/da_melid_70_phrase_5.png)
 
-### 6.1. Sastav i granice zbirke
+Slika 1. Potvrđen kandidat iz sola „I Fall in Love Too Easily“ (melid 70, fraza 5). Call ima 11, a response 9 nota; na slici je prikazan stvarni DTW skor 0,464 i put od 12 koraka. Izbor nije zasnovan samo na skoru: pri slušanju se čuje odgovor na prethodnu ideju, dok poravnanje pokazuje da se srodne promene visine ne moraju pojaviti u potpuno istim pozicijama.
 
-Konačna pozitivna zbirka ima 114 anotacija iz 76 sola, 73 različita naslova i 42 izvođača. Call segmenti sadrže ukupno 1.136 nota, a response segmenti 1.278 nota. Medijane dužina su devet i deset nota; opsezi su 5-25 i 6-38 nota. Veći broj nota nije automatska garancija smislenog odnosa, ali ove vrednosti opisuju stvarno sačuvane segmente.
+![Loš kandidat: Blues for Blanche, melid 2, fraza 39](output/dtw_graphs/ne_melid_2_phrase_39.png)
 
-Dvadeset šest anotacija nalazi se u celosti u jednoj WJD frazi, a 88, odnosno 77,2%, prelazi najmanje jednu njenu granicu (slika 1). To pokazuje da bi strogo ograničenje na jednu frazu isključilo znatan deo ove zbirke. Pošto su korišćeni različiti načini predlaganja, procenat ne predstavlja procenu raspodele svih call-and-response odnosa u WJD-u.
+Slika 2. Odbijen kandidat iz sola „Blues for Blanche“ (melid 2, fraza 39). Iako je njegov DTW skor 0,125, manji od skora na slici 1, kandidat je pri slušanju označen kao `NE`. U oba segmenta ima kratkih, veoma sličnih i ponovljenih tonova, pa algoritam pronalazi jeftin put poravnanja. Međutim, taj lokalni obrazac ne stvara dovoljno jasnu vezu pitanja i odgovora. Ovaj primer direktno pokazuje da niži DTW skor ne znači automatski bolji call-and-response odnos.
 
-![Obuhvat fraza](rad/figure/figure_1_annotation_scope.png)
+Razlika između slika 1 i 2 ne može se potpuno svesti na geometriju dve melodijske linije. Na slici 1 response zvuči kao zaokružena reakcija na call, dok se na slici 2 ista sličnost može objasniti kratkim mehaničkim ponavljanjem. To je razlog zbog kojeg baza zadržava ljudsku potvrdu i uz svaku stavku čuva MIDI isečak koji omogućava ponovno slušanje.
 
-Slika 1. Položaj potvrđenih anotacija prema zvaničnim WJD frazama (n = 114). / Figure 1. Confirmed annotations within and across official WJD phrase boundaries (n = 114). This is a description of the curated collection, not a corpus-wide prevalence estimate.
+### 4.2. Preklapanje DTW skorova
 
-Sedamnaest zapisa pripada osam grupa sa preklapanjem. Neke grupe sadrže alternativne prihvaćene granice, a druge parove koji dele jedan segment. Broj redova zato ne treba poistovećivati sa brojem nezavisnih događaja. Zapisi nisu automatski obrisani, već je njihova povezanost sačuvana u JSON-u.
+Na zamrznutom razvojnom skupu bilo je 299 automatski izvučenih kandidata: 101 prihvaćen i 198 odbijen. Slika 3 prikazuje raspodele normalizovanog globalnog DTW skora za te dve grupe. Horizontalna osa razlikuje ručno prihvaćene i odbijene kandidate, dok vertikalna osa prikazuje globalni pitch-DTW skor podeljen dužinom puta. Plavi violinski dijagram i tačke pripadaju grupi `DA`, a crveni grupi `NE`.
 
-### 6.2. Sličnost nije dovoljna potvrda
+![Raspodela DTW skorova za razvojne oznake](rad/figure/figure_2_dtw_overlap.png)
 
-Na slici 2 prikazana je raspodela jednako preračunatog globalnog pitch-DTW skora za 299 algoritamskih kandidata. Pozitivni i negativni primeri imaju preklapajuće vrednosti. Mala udaljenost stoga ne određuje jednoznačno ljudsku oznaku; grafikon ne utvrđuje uzrok svakog pojedinačnog odbijanja.
+Slika 3. Raspodele globalnog normalizovanog DTW skora za 101 `DA` i 198 `NE` automatskih kandidata. Širina obojenog oblika pokazuje veću zastupljenost skora, pojedinačne tačke su kandidati, a crna crta označava centralni položaj raspodele. Grupe se snažno preklapaju. Zbog toga fiksni prag može smanjiti broj kandidata za slušanje, ali ne može pouzdano razdvojiti dobre i loše parove.
 
-![Raspodela DTW skora](rad/figure/figure_2_dtw_overlap.png)
+Preklapanje potvrđuje nalaz iz pojedinačnih primera. Mala udaljenost može nastati zbog stvarnog odgovora, ali i zbog ponavljanja jednog tona, kratke figure ili povoljnog warping puta. Nasuprot tome, smislen odgovor može biti duži, transponovan ili melodijski promenjen i zato imati viši skor. DTW je ostao koristan kao mera sličnosti i alat za vizuelizaciju, ali nije tretiran kao samostalna definicija odnosa.
 
-Slika 2. Globalni DTW prema jednačini (1), bez naknadnih kazni: 101 DA i 198 NE. Tačke su pojedinačni kandidati, a širina oblika prikazuje procenjenu gustinu. / Figure 2. Global pitch-DTW score for 101 accepted and 198 rejected automatic candidates. Lower values indicate greater similarity; the distributions overlap.
+### 4.3. Rezultati rangiranja kandidata
 
-Uočene greške uključuju kratka brza podudaranja, ponovljene tonove koji se povoljno poravnavaju i granice koje presecaju muzičku misao. To su kvalitativne opservacije tokom pregleda. Pošto svi NE primeri nisu nezavisno označeni kategorijom greške, nije procenjen pouzdan procenat pojedinačnih uzroka.
+Naknadna evaluacija je obavljena nad zamrznutim skupom od 307 označenih redova (109 `DA`, 198 `NE`). Osam ručno unetih referenci izvan automatske pretrage izdvojeno je iz poređenja, pa su glavne dve grupe bile: 299 automatskih kandidata i uži skup od 238 kandidata povezanih sa MLU anotacijama. U tabeli 1 dat je prosečan udeo prihvaćenih kandidata među prvih 20% reda za pregled, dobijen kroz tri nasumična semena i petostruku podelu po solima.
 
-### 6.3. Poređenje rangiranja
+| Metod rangiranja | Automatski kandidati (299) | MLU podskup (238) |
+|---|---:|---:|
+| DTW i incipit | 42,78% | 44,67% |
+| Postojeća kazna za `NE` obrasce | 43,33% | 46,00% |
+| Raniji višekarakteristični rang | 56,11% | 54,67% |
+| Ponovo prilagođen rang | 54,44% | 56,00% |
+| Učestalost intervalskog obrasca | 35,00% | 31,33% |
+| Blaga kazna intervalskog obrasca | 53,89% | 56,00% |
 
-Tabela 1 prikazuje srednju preciznost kroz tri grupisane podele istih podataka. Postojeći model koristi ranije izabrani izvor trening kandidata, dok ponovo obučeni model koristi sve dozvoljene trening oznake. Ta razlika je izdvojena da se efekat promene trening skupa ne pripiše novoj reprezentaciji.
+Tabela 1. Prosečan procenat ručno prihvaćenih primera među prvih 20% kandidata za pregled. Vrednosti mere kvalitet reda za slušanje, a ne ukupnu tačnost automatskog detektora.
 
-Tabela 1. Preciznost pri istom budžetu pregleda (%). / Table 1. Mean precision under the same review budget (%); 60 selected candidates for all automatic proposals and 50 for the MLU subset in each repetition.
+![Poređenje kvaliteta reda za pregled](rad/figure/figure_3_ranking.png)
 
-| Metoda | Svi, n = 299 | MLU, n = 238 |
-| --- | ---: | ---: |
-| DTW + incipit | 42,8 | 44,7 |
-| DTW + postojeća NE kazna | 43,3 | 46,0 |
-| Postojeći model za rangiranje | 56,1 | 54,7 |
-| Ponovo obučeni model, 10 osobina | 54,4 | 56,0 |
-| Samo učestalost obrazaca | 35,0 | 31,3 |
-| Model + kazna za obrasce | 53,9 | 56,0 |
-| Model + kazna prema susedima | 53,3 | 54,7 |
-| Model + intervalske osobine | 45,6 | 42,7 |
+Slika 4. Isto poređenje prikazano stubičasto. Horizontalna osa je procenat `DA` oznaka u prvih 20% kandidata, a vertikalna osa prikazuje metode. Za svaki metod prikazani su rezultat nad svim automatskim kandidatima i nad MLU podskupom. Višekarakteristični rang i blaga kazna obrasca mogu poboljšati prioritet liste, ali nijedan rezultat nije dovoljno visok da ukloni potrebu za slušanjem.
 
-Na MLU podskupu ponovo obučeni model daje 26/50, 29/50 i 29/50 dobrih predloga. Nova kazna za obrasce daje iste ukupne brojeve. Kazna prema susedima daje 27/50, 28/50 i 27/50, a prošireni intervalski model 21/50, 23/50 i 20/50. Dodatne osobine i kazne nisu donele dosledan napredak u odnosu na jednostavniju kontrolu (slika 3).
+Ovi rezultati podržavaju umeren zaključak. Više karakteristika može pomoći da se ručni pregled bolje usmeri, ali rezultati nisu dokaz da je problem rešen automatskom klasifikacijom. Posebno je važno da intervalska učestalost kao samostalan signal daje slab rezultat, dok blaga kazna može pomoći samo kada se kombinuje sa drugim informacijama. Drugim rečima, pravilo „često ponavljanje znači loš kandidat“ bilo bi previše strogo; ponavljanje je ponekad upravo deo validnog odgovora.
 
-![Preciznost rangiranja](rad/figure/figure_3_ranking.png)
+### 4.4. Konačna baza JazzDialog
 
-Slika 3. Srednja preciznost i opseg rezultata tri podele; crte nisu intervali poverenja. / Figure 3. Mean precision and range across three grouped splits. Error bars are split ranges, not confidence intervals; repetitions reuse the same labelled candidates.
+Konačni skup JazzDialog sadrži 114 ručno potvrđenih zapisa iz 76 solaža, 73 naslova i 42 izvođača. Zapisi potiču iz više stilskih oznaka iz pratećih podataka: 31 post-bop, 29 cool, 17 hard-bop, 14 swing, 8 bebop, 7 fusion, 6 traditional i 2 free primera. Zbir nije interpretacija muzičke zastupljenosti žanrova u celom izvoru, već opis potvrđene kolekcije.
 
-Kada se grupiše po izvođaču, ponovo obučeni model na MLU podskupu daje prosečno 52,0%, a model sa kaznom za obrasce 53,3%. Posle uklanjanja preklapanja ostaje 263 kandidata; u jednoj proveri kontrola daje 30/55 dobrih predloga, a nova kazna 31/55. Ovi mali pomaci nisu osnova za tvrdnju o stabilnom poboljšanju.
+Call delovi imaju ukupno 1136, a response delovi 1278 nota. Broj nota u call-u kreće se od 5 do 25, sa medianom 9; u response-u od 6 do 38, sa medianom 10. Zbog toga baza ne zahteva jednake dužine, ali izbegava mikrosegmente. U kolekciji je 26 anotacija u potpunosti unutar jedne zvanične fraze, dok 88 prelazi njenu granicu. To opisuje način na koji su ručno potvrđeni parovi na kraju locirani, a ne procenat call-and-response odnosa u svim jazz solažama.
 
-Ispitan je i izbor praga koji u unutrašnjoj validaciji cilja preciznost od 80%, uz najmanje deset predloga iz tri grupe. Kazna za obrasce nije dala prihvatljivu selekciju. DTW na MLU podskupu daje male selekcije 5/6, 6/7 i 10/12, ali na celom mešanom skupu 1/3, 2/4 i 4/6. Prema tome, pojedinačan dobar rezultat pri niskom pragu nije dovoljan za deklarisanje opšte pouzdanosti od 80%.
+![Obuhvat anotacija u odnosu na granice fraza](rad/figure/figure_1_annotation_scope.png)
 
-## 7. Diskusija
+Slika 5. Raspodela 114 konačnih zapisa prema odnosu sa zvanično anotiranim granicama fraza. Oznake na stubičastom grafikonu daju broj zapisa, dok horizontalna osa razlikuje parove unutar jedne fraze od parova koji prelaze granicu. Slika pokazuje zašto granica fraze jeste koristan okvir za kontrolisanu pretragu, ali nije potpuna definicija muzičke ideje.
 
-Rezultati ukazuju na dva odvojena problema: izbor granica i ocenu odnosa. Ako kandidat ne obuhvata odgovarajuću muzičku celinu, kvalitetnija mera sličnosti ne može sama vratiti izostavljene note. Veliki broj potvrđenih anotacija preko granica fraza podržava proširenje prostora predlaganja, ali široka pretraga istovremeno stvara više prilika za slučajna podudaranja. Zato veći broj niskih skorova nije sam po sebi napredak.
+Sedamnaest zapisa pripada osam grupa preklapajućih anotacija. Takvi zapisi nisu nezavisni muzički događaji i moraju se pažljivo koristiti u svakoj kasnijoj statističkoj analizi ili podeli na trening i test skup. Svaki red finalnog CSV fajla `jazzdialog.csv` sadrži samo potrebne podatke za ponovno lociranje i korišćenje para: identifikator od 1 do 114, izvođača, naslov, `wjd_melid`, tonalitet, podatke o stilu i tempu, granice i vremena call/response delova, broj nota, nizove MIDI visina i putanju do MIDI isečka. Prateći JSON čuva bogatiju strukturu i proveru integriteta paketa.
 
-Važno svojstvo jednačine (1) jeste zavisnost skale od dužine putanje. Ako su sve apsolutne razlike na putanji jednake e, onda je skor e/sqrt(|P|). Duža putanja može dobiti manji skor iako prosečno odstupanje nije manje. Ovo je matematičko svojstvo korišćene normalizacije, a ne novo izmerena stopa greške. RMS odstupanje sqrt(sum(error^2)/|P|) imalo bi drugačiju skalu. Njegovo uvođenje zahtevalo bi novu kalibraciju i nezavisan test; stari pragovi se ne mogu neposredno preneti.
+### 4.5. Odnos prema srodnim radovima i doprinos
 
-Pored toga, slobodna horizontalna i vertikalna kretanja mogu više nota jednog segmenta poravnati sa istom notom drugog. Izabrana putanja minimizuje akumulisani trošak, a ne direktno konačni količnik. Ograničavanje nagiba ili dužine niza takvih koraka predstavlja smislen naredni eksperiment, ali njegova korisnost ovim radom nije dokazana. Ni sabiranje uzastopnih intervala od prve note ne stvara automatski novu informaciju: takav zbir je upravo razlika trenutne i prve visine.
+Postoje radovi koji call-and-response koriste kao zadatak za generisanje muzike. Na primer, Hu i saradnici (2024) opisuju skup CRD19 i model za generisanje odgovora na zadati call. JazzDialog se razlikuje po tome što polazi od stvarnih solo improvizacija i dokumentuje postupak pronalaženja i ručne potvrde parova u transkribovanom materijalu. Zato se ne poredi direktno kvalitet generisanog odgovora, već se istražuje koliko je teško pronaći odnos koji je već nastao u improvizaciji.
 
-Jednostavan model sa ljudskim oznakama u proseku je bolje rangirao razvojne kandidate od DTW osnove, ali približno polovina predloga u fiksnom budžetu i dalje nije prihvaćena. Neuspeh dodatne kazne ne znači da negativne oznake nisu korisne: osnovni model ih već koristi. Pokazuje da konkretna dodatna reprezentacija nije dosledno smanjila trošak pregleda na ovom uzorku.
+Drugi doprinos rada je dokumentovanje negativnih nalaza. Umesto da se neuspešne metrike prikriju, one objašnjavaju zašto je konačni proces hibridan. Melodijska udaljenost, kontura, ritam i obrasci ponavljanja mere delove muzičkog odnosa, ali nijedna korišćena mera nije obuhvatila njegovu celinu. JazzDialog zato nije „automatski dokazani“ skup, već pregledan, proverljiv skup čiji se svaki zapis može vratiti na izvorni solo i preslušati.
 
-Vrednost konačne zbirke potiče iz proverljivih anotacija, a ne iz tvrdnje da je detektor sam pouzdan. Ljudska potvrda ne pretvara ove podatke u apsolutnu muzičku istinu. Jedan ocenjivač, razvojno menjani kriterijumi, pristrasnost izbora kandidata, preklapanja i korišćenje izvornih ručnih MLU anotacija ograničavaju generalizaciju. Ne postoje potpun popis svih CR odnosa, procena odziva nad WJD-om ni merenje slaganja ocenjivača. Rezultati zato ne dokazuju da računari načelno ne mogu da prepoznaju jazz dijalog.
+## 5. Ograničenja i budući rad
 
-## 8. Format, ponovljivost i dalja upotreba
+Najvažnije ograničenje je subjektivnost pojma call-and-response. Jedan slušalac može uočiti odgovor tamo gde drugi čuje samo ponavljanje ili nastavak fraze. U ovoj verziji bazu je proverila jedna anotatorka, pa nema mere saglasnosti više nezavisnih slušalaca. Dodatna anotacija istih kandidata od više muzičara bila bi najvažniji sledeći korak.
 
-Glavna datoteka jazzdialog.csv sadrži 24 kolone. Prve su redni identifikator, izvođač, naslov, WJD identifikator i tonalitet; zatim slede metapodaci, granice, vremena, broj i visine nota i putanja MIDI fajla. Redovi su uređeni po izvođaču, naslovu i mestu u solu, sa identifikatorima 1-114. Odgovarajući fajlovi nose nazive jazzdia-1.mid do jazzdia-114.mid. Ako se sastav ponovo sortira, redni identifikatori mogu se promeniti; trajna veza sa izvorom određena je WJD identifikatorom i granicama, uz sačuvan Git snimak.
+Drugo ograničenje je oslanjanje na transkribovane monofone note. Time su dostupne visina, vreme i trajanje, ali ne i artikulacija, dinamika, boja tona, harmonijska pratnja i interakcija sa ansamblom. Ritam je testiran samo preko odnosa međunotnih razmaka; negativan rezultat te konkretne mere ne dokazuje da ritam nema ulogu u slušanju.
 
-JSON čuva svaku notu i podatke o poreklu i preklapanju. Izvoz automatski proverava visine, početke, trajanja, obe MIDI trake i usklađenost CSV-a sa manifestom. Prenosivi ZIP može se proveriti i bez lokalne WJD baze. Odbijeni primeri čuvaju se u razvojnoj istoriji, ali se ne mešaju sa glavnim skupom pozitivnih parova. Izvorni uslovi WJD-a, ODbL i DbCL, ostaju relevantni za izvedene podatke.
+Treće, razvojni skup oznaka služio je i za oblikovanje pretrage i za retrospektivno poređenje rangiranja. Zato tabela 1 ne predstavlja nezavisnu procenu generalizacije. Za buduću evaluaciju treba unapred zamrznuti deo solaža koji se neće koristiti pri podešavanju pravila, a zatim ih anotirati bez poznavanja skora algoritma.
 
-Kod, podaci i dokumentacija dostupni su u repozitorijumu https://github.com/NikolinaZdravkovic/jazzdialog. Skripta export_reviewed_dataset.py obnavlja zbirku, a evaluate_feedback_patterns.py sprovodi opisano poređenje. Eksperimentalni snimak oznaka identifikuje SHA-256 6d3c073282ccb9cc41b279bf24a21c8d02b54d60a3dede8c8ae2ca217d320fde i Git commit d6c4003. Sažeti rezultati za tabele i grafikone sačuvani su uz rad. Razvojni parametri i dodatne provere dokumentovani su u RESEARCH.md.
+Praktičan naredni korak je proširenje JazzDialog baze novim parovima uz isti format i jasnu evidenciju verzija. Na većoj bazi bilo bi moguće odvojeno ispitati melodijske, ritmičke i harmonske osobine, kao i trenirati model koji uči iz više potvrđenih i odbijenih primera. Takav model mogao bi da služi kao prioritet za pregled, ali ne bi trebalo da se smatra zamenom za muzičku procenu. Baza takođe može biti polazište za kasnije radove o generisanju jazz call-and-response dijaloga, što je bila početna motivacija projekta, ali nije realizovana tema ovog rada.
 
-Za treniranje na ovim podacima potrebno je odvojiti cele soloe, a po potrebi i izvođače, između treninga i testa. Pozitivna zbirka sama nije klasifikacioni test: neophodni su posebno označeni negativni primeri. Najvažniji naredni koraci su drugi nezavisni anotator, preciznije beleženje vrste odnosa i greške granice, pa tek zatim testiranje novih mera na do tada neviđenim i sistematski anotiranim soloima.
+## 6. Zaključak
 
-## 9. Zaključak
+U radu je ispitan postupak računarske analize jazz solaža sa ciljem izdvajanja call-and-response parova i izgrađena je baza JazzDialog. Analiza je pokazala da se kandidati mogu uspešno pronaći pomoću granica fraza, poređenja melodijskih nizova i dodatnih ograničenja, ali da mala DTW udaljenost nije dovoljna da potvrdi muzički odnos. Kratka ponavljanja i povoljno poravnanje mogu dati veoma nizak skor i kada pri slušanju nema jasnog odgovora.
 
-Izgrađena je zbirka od 114 proverljivih call-and-response anotacija, sa simboličkim sadržajem i jasnom vezom prema WJD izvorima. Postupak je objedinio računarsko predlaganje, ljudski pregled i povezivanje početnih ručnih primera. Retrospektivno poređenje pokazalo je korist jednostavnog učenja redosleda pregleda u odnosu na DTW osnovu, ali ne i doslednu korist dodatnih statističkih kazni. Sličnost visina i zvanične granice fraza ne predstavljaju dovoljno pouzdanu automatsku odluku. Zbirka i dokumentovane greške daju osnovu za narednu proveru granica i modela, uz očuvanje razlike između merljive sličnosti i ljudske procene muzičkog odnosa.
+Najvažniji rezultat nije jedna univerzalna metrika, već dokumentovan hibridni proces: računar generiše i poređa proverljive kandidate, a ljudsko slušanje potvrđuje muzičku celinu. Kao rezultat tog procesa nastala je JazzDialog baza sa 114 potvrđenih parova i MIDI isečcima, spremna za dalje anotiranje, analizu i upotrebu u budućim istraživanjima jazz improvizacije.
 
 ## Literatura
 
-Frieler, K., Pfleiderer, M., Zaddach, W.-G., Abeßer, J. 2016. Midlevel analysis of monophonic jazz solos: A new approach to the study of improvisation. Musicae Scientiae. https://doi.org/10.1177/1029864916636440
+Gebru, T., Morgenstern, J., Vecchione, B., Vaughan, J. W., Wallach, H., Daumé III, H. i Crawford, K. (2021). Datasheets for Datasets. *Communications of the ACM*, 64(12), 86–92. doi: 10.1145/3458723.
 
-Gebru, T., Morgenstern, J., Vecchione, B., Vaughan, J. W., Wallach, H., Daumé III, H., Crawford, K. 2021. Datasheets for Datasets. Communications of the ACM, 64(12): 86-92. https://doi.org/10.1145/3458723
+Hu, Y., Wang, Z., Liu, R., Liang, Y. i Zhang, Y. (2024). Responding to the Call: Exploring Automatic Music Composition Using a Knowledge-Enhanced Model. *Proceedings of the AAAI Conference on Artificial Intelligence*, 38(1), 521–529. doi: 10.1609/aaai.v38i1.27807.
 
-Hu, Z., Liu, Y., Chen, G., Ma, X., Zhong, S., Luo, Q. 2024. Responding to the Call: Exploring Automatic Music Composition Using a Knowledge-Enhanced Model. Proceedings of the AAAI Conference on Artificial Intelligence, 38(1): 521-529. https://doi.org/10.1609/aaai.v38i1.27807
+Jazzomat Research Project (2026). Database format and documentation. Hochschule für Musik Franz Liszt Weimar. Dostupno na: https://jazzomat.hfm-weimar.de/dbformat/dboverview.html [pristupljeno 29. 9. 2026].
 
-Jazzomat Research Project. Dokumentacija Weimar Jazz Database: pregled i format baze. https://jazzomat.hfm-weimar.de/dbformat/dboverview.html i https://jazzomat.hfm-weimar.de/dbformat/dbformat.html (pristupljeno 29. 9. 2026).
+Müller, M. (2015). *Fundamentals of Music Processing: Audio, Analysis, Algorithms, Applications*. Cham: Springer. doi: 10.1007/978-3-319-21945-5.
 
-Müller, M. 2015. Fundamentals of Music Processing: Audio, Analysis, Algorithms, Applications. Cham: Springer. https://doi.org/10.1007/978-3-319-21945-5
+Pfleiderer, M., Frieler, K., Abeßer, J., Zaddach, W. G. i Burkhart, B., ur. (2017). *Inside the Jazzomat: New Perspectives for Jazz Research*. Mainz: Schott Campus.
 
-Pfleiderer, M., Frieler, K., Abeßer, J., Zaddach, W.-G., Burkhart, B. (ur.) 2017. Inside the Jazzomat: New Perspectives for Jazz Research. Schott Campus. https://jazzomat.hfm-weimar.de/
+Salamon, J., Peeters, G. i Röbel, A. (2012). Statistical Characterisation of Melodic Pitch Contours and Its Application for Melody Extraction. U: *Proceedings of the 13th International Society for Music Information Retrieval Conference*, 187–192.
 
-Salamon, J., Peeters, G., Röbel, A. 2012. Statistical Characterisation of Melodic Pitch Contours and its Application for Melody Extraction. Proceedings of ISMIR 2012, 187-192. https://www.justinsalamon.com/uploads/4/3/9/4/4394963/salamonmelodiccontourismir12.pdf
-
-scikit-learn developers. Cross-validation: iterators for grouped data; Common pitfalls: data leakage. https://scikit-learn.org/stable/modules/cross_validation.html i https://scikit-learn.org/stable/common_pitfalls.html (pristupljeno 29. 9. 2026). Referenca za protokol evaluacije; model projekta implementiran je u NumPy-ju.
-
-Wilkinson, M. D. et al. 2016. The FAIR Guiding Principles for scientific data management and stewardship. Scientific Data, 3: 160018. https://doi.org/10.1038/sdata.2016.18
-
-## English summary
-
-### JazzDialog: Building and analysing a collection of call-and-response pairs in jazz solos
-
-This study presents JazzDialog, a human-verified collection of call-and-response annotations linked to symbolic solo transcriptions in the Weimar Jazz Database (WJD). The objective is to create reusable data and examine how computational similarity can reduce the cost of human review, rather than to claim fully automatic recognition of musical dialogue.
-
-The collection contains 114 annotations from 76 solos, covering 73 tune titles and 42 performers. Each annotation includes the two segments' note boundaries, pitches and original WJD timing, with a corresponding MIDI excerpt containing separate CALL and RESPONSE tracks. Thirteen records are linked to the author's initial manual references. Seven other references concern recordings absent from the local WJD, and one is incomplete; they were not assigned fabricated source identities.
-
-Candidates were proposed by splitting official phrases and by using existing WJD midlevel-unit relationships. A single reviewer listened to the excerpts and accepted or rejected each candidate. Of the accepted annotations, 88 cross an official phrase boundary (Figure 1). Seventeen records belong to eight overlap groups and should not be treated as independent observations. These figures describe the curated collection, not the prevalence of call-and-response across the entire corpus.
-
-A retrospective evaluation compared DTW-based ranking, a ten-feature logistic model and additional soft penalties learned from negative examples. The evaluation snapshot contained 299 automatic proposals, including 101 accepted and 198 rejected candidates; separately selected manual references were excluded. Five-fold validation grouped by solo was repeated with three fixed seeds. Models selected the same top 20% of candidates within each held-out fold, giving 60 proposals per repetition. Mean precision was 42.8% for DTW with incipit comparison and 54.4% for the refitted ten-feature model. The strongest existing-model variant reached 56.1% on this mixed set. On the 238-candidate midlevel subset, the refitted model and its pattern-penalty variant both reached 56.0%. Additional penalties did not yield a consistent benefit (Table 1 and Figure 3).
-
-Accepted and rejected candidates have overlapping DTW scores (Figure 2). The analysis also identifies a length dependence in the implemented distance normalization, which must be distinguished from perceptual similarity. The results are limited by prior development on these labels, candidate-selection bias, one reviewer and the absence of exhaustive annotations or independent test solos. They do not establish corpus-wide recall or a general impossibility of automatic recognition. JazzDialog contributes traceable positive annotations, portable data and a documented baseline for future boundary and ranking experiments.
+Wilkinson, M. D. i dr. (2016). The FAIR Guiding Principles for scientific data management and stewardship. *Scientific Data*, 3, 160018. doi: 10.1038/sdata.2016.18.

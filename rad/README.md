@@ -1,8 +1,8 @@
 # Rad za pregled
 
-Najlakše je da otvoriš **jazzdialog_rad.docx** i upisuješ komentare ili menjaš tekst. **jazzdialog_rad.pdf** je provereni prikaz iste verzije na devet strana. To je rukopis za tvoju i Majinu proveru, ne rad koji je već recenziran ili prihvaćen na konferenciji.
+Najlakše je da otvoriš **jazzdialog_rad.docx** i upisuješ komentare ili menjaš tekst. **jazzdialog_rad.pdf** je provereni prikaz iste verzije na deset strana. To je rukopis za tvoju i Majinu proveru, ne rad koji je već recenziran ili prihvaćen na konferenciji.
 
-Rad obuhvata cilj, povezanu literaturu, podatke, postupak anotiranja, DTW i rangiranje, protokol evaluacije, rezultate, ograničenja i dalju upotrebu. Ima tri grafikona, jednu tabelu poređenja, devet bibliografskih stavki i duži engleski rezime.
+Rad obuhvata cilj, pripremu podataka, postupak anotiranja, DTW i druga ispitivanja, rangiranje, rezultate, ograničenja i dalju upotrebu. Ima pet grafikona, jednu tabelu poređenja i sedam bibliografskih stavki; nema engleski sažetak.
 
 ## Šta je još potrebno pre slanja
 
@@ -16,7 +16,7 @@ Smernice korišćene za organizaciju: https://konferencija.petnica.rs/korisne-sm
 ## Datoteke i ponovljivost
 
 - `../DRAFT_RADA.md` je izvorni tekst iz kog je napravljen Word. Ako menjaš Word ručno, ne pokreći ponovnu izgradnju preko svojih izmena pre nego što se one prenesu i u izvorni tekst.
-- `figure/` sadrži tri grafikona kao PNG od 320 dpi i SVG vektore, kao i dve slike formula. Potpisi grafikona u radu su na srpskom i engleskom.
+- `figure/` sadrži tri sažeta grafikona kao PNG od 320 dpi i SVG vektore, kao i dve slike formula. Uz njih su u radu iskorišćena dva postojeća DTW prikaza konkretnih kandidata iz `../output/dtw_graphs/`. Natpisi i opisi u radu su na srpskom latinicom.
 - `statistika.json` čuva brojeve za grafikone, rezultate po podelama i kontrolne sažetke izvora.
 - `evaluacija.json.gz` je komprimovan kompletan izveštaj ranijeg eksperimenta. Čita se funkcijom `gzip.open` i ne služi ručnom pregledu baze.
 
@@ -24,4 +24,4 @@ Konačna baza ima 114 DA. Evaluacija koristi raniji snimak od 307 oznaka, sa 299
 
 Grafikoni se obnavljaju komandom `python scripts/make_paper_figures.py` iz korena projekta (NumPy, Matplotlib, DTAIDistance). Grafik rangiranja uvek čita zamrznuti izveštaj uz rad. Pre promene oznaka potrebno je namerno ažurirati i opis uzorka u radu.
 
-Word se obnavlja komandom `python scripts/build_paper.py` (python-docx). Za ovu izradu korišćen je raspoloživi Codex Python runtime. PDF je izvezen iz Worda i svih devet strana provereno je posle rasterizacije. Za izmene koje radiš u Wordu izaberi Save As / PDF da bi PDF ponovo odgovarao izmenjenom dokumentu.
+Word se obnavlja komandom `python scripts/build_paper.py` (python-docx). Za ovu izradu korišćen je raspoloživi Codex Python runtime. PDF je izvezen iz Worda i svih deset strana provereno je posle rasterizacije. Za izmene koje radiš u Wordu izaberi Save As / PDF da bi PDF ponovo odgovarao izmenjenom dokumentu.
