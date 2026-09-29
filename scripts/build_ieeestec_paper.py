@@ -51,25 +51,25 @@ def compact_example_figure():
     bad_call = [73, 72, 70, 72, 73, 72, 70]
     bad_response = [73, 73, 72, 70, 72, 70]
     examples = [
-        ("(a) Prihvaćen: I Fall in Love Too Easily (DTW = 0,464)",
+        ("(a) I Fall in Love Too Easily — prihvaćen\nDTW = 0,464",
          good_call, good_response),
-        ("(b) Odbijen: Blues for Blanche (DTW = 0,125)",
+        ("(b) Blues for Blanche — odbijen\nDTW = 0,125",
          bad_call, bad_response),
     ]
-    fig, axes = plt.subplots(1, 2, figsize=(6.2, 2.35), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(6.5, 2.55), sharey=True)
     for ax, (title, call, response) in zip(axes, examples):
         ax.plot(range(1, len(call) + 1), call, "o-", color="#2878b5",
                 linewidth=1.25, markersize=3, label="Call")
         ax.plot(range(1, len(response) + 1), response, "s-", color="#d67929",
                 linewidth=1.25, markersize=3, label="Response")
-        ax.set_title(title, fontsize=7, pad=3)
+        ax.set_title(title, fontsize=8, pad=5)
         ax.set_ylabel("MIDI visina", fontsize=7)
         ax.grid(alpha=.25, linewidth=.4)
         ax.tick_params(labelsize=6)
         ax.legend(loc="upper right", fontsize=6, frameon=False)
     for ax in axes:
         ax.set_xlabel("Redni broj note", fontsize=7)
-    fig.tight_layout(pad=.55)
+    fig.tight_layout(pad=.65)
     FIG.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIG, dpi=320, bbox_inches="tight")
     plt.close(fig)
@@ -228,18 +228,21 @@ def build():
     subheading(doc, "B. Numeričke osobine i rangiranje")
     para(doc, "Pošto response ne mora biti kopija call-a, analizirane su različite vrste sličnosti. DTW ispituje da li dve melodijske linije imaju sličan tok čak i kada nemaju isti broj nota [2]. Transponovana, odnosno shape predstava, zanemaruje početnu visinu da bi proverila oblik melodije. Incipit proverava da li response na početku preuzima ideju call-a, intervali obrazac kretanja između tonova, kontura opšti smer melodije, a relativni ritam odnose razmaka između nota.")
     para(doc, "DTW je računat nad MIDI visinama uz optimalni put kroz matricu razlika; manja vrednost označava bliže melodijsko poravnanje. U brzoj frazi incipit je proširivan do približno 0,75 s, jer tri kratke note nisu dovoljan signal. Kandidati su zatim rangirani kombinovanjem DTW-a, incipita, odnosa dužina, zastupljenosti istih tonova, raznovrsnosti visina i približnog ponavljanja intervala. Negativni primeri su korišćeni samo za blage kazne čestih loših obrazaca.")
-    para(doc, "U kasnijem koraku kandidati su rangirani korišćenjem DTW-a, incipita, odnosa dužina, zastupljenosti istih tonova, raznovrsnosti visina i približnog ponavljanja intervala. Negativno označeni primeri korišćeni su samo za blage kazne čestih loših obrazaca; obrazac nije strogo zabranjen, jer ponavljanje može biti deo validnog odgovora.")
-
     subheading(doc, "C. Potvrda")
     para(doc, "Računarski postupak nije donosio konačnu odluku da je kandidat call-and-response. Njegova uloga bila je da izdvoji i rangira kandidate, nakon čega je svaki preslušan i ručno označen kao prihvaćen ili odbijen na osnovu muzičke procene odnosa. Konačnu oznaku davala je autorka rada.")
 
     heading(doc, "III. REZULTATI I DISKUSIJA")
     para(doc, "Prvi dokaz ograničenja DTW-a je konkretan par primera na slici 1. Prihvaćeni kandidat iz sola „I Fall in Love Too Easily“ ima DTW skor 0,464, dok odbijeni kandidat iz „Blues for Blanche“ ima znatno manji skor, 0,125. Kako manji skor znači veću melodijsku sličnost, prost kriterijum bi pogrešno favorizovao odbijeni primer. On sadrži kratko, mehaničko ponavljanje tonova koje algoritam lako poravnava, ali pri slušanju ne funkcioniše kao jasan odgovor. Prihvaćeni response nije kopija call-a, već razvija prethodnu muzičku ideju. Melodijska sličnost zato nije isto što i call-and-response funkcija.")
-    wide_picture(doc, FIG, "Slika 1. Melodijske konture call-a i response-a za (a) prihvaćeni i (b) odbijeni kandidat. Horizontalna osa je redni broj note unutar segmenta, a vertikalna osa MIDI visina. Odbijeni primer ima znatno niži DTW skor, što pokazuje da skor sam nije odluka o muzičkoj funkciji.")
+    p = para(doc, "Primeri sa slike 1: (a) I Fall in Love Too Easily, melid 70, fraza 5; (b) Blues for Blanche, melid 2, fraza 39.", align=WD_ALIGN_PARAGRAPH.CENTER)
+    for run in p.runs:
+        run.bold = True
+        run.font.size = Pt(7.6)
+    p.paragraph_format.space_after = Pt(0)
+    picture(doc, FIG, "Slika 1. Melodijske konture call-a i response-a za (a) I Fall in Love Too Easily i (b) Blues for Blanche. Horizontalna osa je redni broj note unutar segmenta, a vertikalna osa MIDI visina. Odbijeni primer ima znatno niži DTW skor, što pokazuje da skor sam nije odluka o muzičkoj funkciji.")
     para(doc, "Dva primera mogu biti izolovan slučaj, pa je zatim provereno da li se DTW skorovi razdvajaju na većem skupu od 299 ručno ocenjenih kandidata: 101 prihvaćenom i 198 odbijenih. Ako bi DTW bio pouzdan samostalan kriterijum, prihvaćeni kandidati bi uglavnom imali niže skorove. Slika 2 pokazuje veliko preklapanje raspodela; zato ne postoji jednostavan DTW prag koji pouzdano odvaja call-and-response od ostalih kandidata. Figura prikazuje pojedinačne kandidate i njihovu raspodelu po dve ručne oznake.")
-    wide_picture(doc, OUT / "figure" / "figure_2_dtw_overlap.png", "Slika 2. Raspodele normalizovanog globalnog DTW skora za ručno prihvaćene i odbijene automatske kandidate.", width=15.6)
+    picture(doc, OUT / "figure" / "figure_2_dtw_overlap.png", "Slika 2. Raspodele normalizovanog globalnog DTW skora za ručno prihvaćene i odbijene automatske kandidate.")
     para(doc, "Pošto nijedna mera nije mogla sama da potvrdi odnos, sledeći cilj nije bila automatska klasifikacija već bolji redosled za ručni pregled: dobri kandidati treba da budu što bliže vrhu liste, kako bi se preslušalo manje loših primera. Metrika na slici 3 je procenat kandidata koji su među prvih 20% rangirane liste i nakon slušanja dobijaju oznaku DA; to nije accuracy klasifikatora. Na zamrznutom razvojnom skupu, uz petostruku podelu po solima i tri semena, DTW sa incipitom daje 42,78%, rang sa više osobina 56,11%, a blaga kazna intervalskih obrazaca 53,89%. Više osobina zato poboljšava kvalitet liste, ali ne uklanja potrebu za slušanjem.")
-    wide_picture(doc, RANK_FIG, "Slika 3. Udeo ručno prihvaćenih kandidata u prvih 20% rangirane liste. Stubovi upoređuju sve automatske kandidate i MLU podskup; prikaz je sažet na tri najinformativnija postupka.", width=15.6)
+    picture(doc, RANK_FIG, "Slika 3. Udeo ručno prihvaćenih kandidata u prvih 20% rangirane liste. Stubovi upoređuju sve automatske kandidate i MLU podskup; prikaz je sažet na tri najinformativnija postupka.")
     para(doc, "Na ranom označenom skupu ispitano je više varijanti melodijske udaljenosti. Najbolja je dostigla AUC 0,603, dok je jednostavna ritmička mera bila blizu slučajnog razdvajanja, AUC 0,501. Pojedinačne mere ritma i konture zato nisu dale stabilnu autonomnu odluku. Učestalost intervalskog obrasca kao samostalna mera dala je 35,00%, pa obrazac čest među odbijenim primerima ne treba strogo zabraniti: ponavljanje je ponekad deo validnog odgovora.")
     para(doc, "Kontura je zato posmatrana kao dodatna, a ne kao samostalna odluka. Ideju je podstakla statistička karakterizacija melodijskih kontura [4], ali se postupak ne može direktno preneti: taj rad izdvaja vodeću melodiju iz polifonog zvuka, dok su ovde već dostupne monofone MIDI note i treba proceniti odnos dva segmenta. Sažeta kontura i njena kombinacija sa ritmom nisu dale stabilan napredak.")
     para(doc, "Konačni skup JazzDialog sadrži 114 ručno potvrđenih call-and-response zapisa iz 76 solaža, 73 naslova i 42 izvođača. Svaki zapis čuva identifikator sola, izvođača, naslov, granice i vremena call/response delova, nizove MIDI visina i putanju do MIDI isečka. Call delovi imaju medijanu od 9, a response delovi medijanu od 10 nota. Dvadeset šest anotacija u celosti je unutar jedne zvanične fraze, dok 88 prelazi njenu granicu; fraze su dakle koristan okvir za pretragu, ali ne i potpuna definicija muzičke ideje.")
@@ -253,6 +256,9 @@ def build():
 
     heading(doc, "V. ZAKLJUČAK")
     para(doc, "Analizirane su stvarne jazz improvizacije da bi se izdvojili kandidati za call-and-response i ispitano je više načina njihovog numeričkog opisivanja. Melodijska sličnost, uključujući DTW, nije bila dovoljna za potvrdu odnosa, dok kombinovanje osobina može poboljšati rangiranje za ručni pregled. Hibridnim postupkom izdvajanja, rangiranja i preslušavanja nastala je JazzDialog baza sa 114 potvrđenih parova. Baza je osnova za proširenje anotacija, ljudsku evaluaciju i buduće modele jazz call-and-response improvizacije.")
+
+    subheading(doc, "Dostupnost podataka")
+    para(doc, "JazzDialog baza, MIDI isečci i skripte za reprodukciju postupka dostupni su u javnom repozitorijumu github.com/NikolinaZdravkovic/jazzdialog.")
 
     heading(doc, "LITERATURA")
     references = [
